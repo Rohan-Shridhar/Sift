@@ -2,6 +2,11 @@
 
 const STORAGE_KEY = "applytrack.applications.v1";
 const COMPANY_STORAGE_KEY = "applytrack.companies.v1";
+const RESUME_STORAGE_KEY = "applytrack.resumes.v1";
+const RESUME_DATABASE_NAME = "applytrack.documents.v1";
+const RESUME_DATABASE_VERSION = 1;
+const RESUME_FILE_STORE = "pdfs";
+const RESUME_MAX_FILE_SIZE = 20 * 1024 * 1024;
 const THEME_KEY = "applytrack.theme.v1";
 const COLLAPSE_KEY = "applytrack.sidebar-collapsed.v1";
 
@@ -18,7 +23,6 @@ const statusClass = {
 };
 const companyColors = ["indigo", "sage", "amber", "blue", "rose"];
 const STATUS_COLORS = ["#81a5cc", "#736be0", "#d8ad71", "#79b49a", "#ce8791", "#9a85b8", "#cf7f78", "#9297a3"];
-const RESUME_STORAGE_KEY = "applytrack.resumes.v1";
 const iconMarkup = {
   opportunities: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 5V3.5h8V5M8 10h8M8 14h5"/></svg>',
   saved: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"/></svg>',
@@ -48,9 +52,11 @@ const seedApplications = [
 
 const initialApplications = loadApplications();
 const initialCompanyData = loadCompanyData(initialApplications);
+const initialResumes = loadResumeRecords();
 const state = {
   applications: linkApplicationsToCompanies(initialApplications, initialCompanyData),
   companies: initialCompanyData.companies,
+  resumes: initialResumes,
   filter: "",
   collapsedSections: new Set(),
   route: "dashboard",
@@ -58,6 +64,12 @@ const state = {
   activeApplicationId: null,
   companyMode: "list",
   activeCompanyId: null,
+  resumeMode: "list",
+  activeResumeId: null,
+  editingResumeId: null,
+  resumeUploadContext: "library",
+  resumeDatabasePromise: null,
+  resumeObjectUrl: null,
   applicationView: "cards",
   formIntent: "saved",
   editingApplicationId: null,
@@ -127,6 +139,17 @@ function normalizeApplications(records) {
     const frequency = record.paymentFrequency || (/hr|hour/i.test(legacyPay) ? "Hourly" : "");
     const rawSkills = Array.isArray(record.skills) ? record.skills : String(record.skills || "").split(/[,;\n]/);
 
+    const storedSnapshot = record.resumeSnapshot && typeof record.resumeSnapshot === "object" ? record.resumeSnapshot : {};
+    const resumeName = String(storedSnapshot.name || record.resumeName || "");
+    const scoreValue = storedSnapshot.atsScore ?? record.resumeAtsScore;
+    const score = scoreValue === "" || scoreValue == null ? null : Number(scoreValue);
+    const resumeSnapshot = resumeName ? {
+      name: resumeName,
+      fileName: String(storedSnapshot.fileName || record.resumeFileName || ""),
+      uploadedAt: String(storedSnapshot.uploadedAt || ""),
+      atsScore: Number.isInteger(score) && score >= 0 && score <= 100 ? score : null
+    } : null;
+
     return {
       id,
       companyId,
@@ -150,12 +173,46 @@ function normalizeApplications(records) {
       deadline: String(record.deadline || ""),
       followUpDate: String(record.followUpDate || ""),
       resumeId: String(record.resumeId || ""),
-      resumeName: String(record.resumeName || ""),
+      resumeName,
+      resumeSnapshot,
       notes: String(record.notes || ""),
       createdAt: String(record.createdAt || new Date().toISOString()),
       updatedAt: String(record.updatedAt || new Date().toISOString())
     };
   });
+}
+
+function normalizeResumeRecords(records) {
+  const ids = new Set();
+  return records.filter((resume) => resume && typeof resume === "object" && resume.id && resume.name)
+    .map((resume) => {
+      const id = String(resume.id);
+      if (ids.has(id)) return null;
+      ids.add(id);
+      const score = resume.atsScore === "" || resume.atsScore == null ? null : Number(resume.atsScore);
+      return {
+        id,
+        name: String(resume.name).trim(),
+        fileName: String(resume.fileName || ""),
+        uploadedAt: String(resume.uploadedAt || new Date().toISOString()),
+        size: Number(resume.size) || 0,
+        atsScore: Number.isInteger(score) && score >= 0 && score <= 100 ? score : null,
+        notes: String(resume.notes || "")
+      };
+    }).filter(Boolean);
+}
+
+function loadResumeRecords() {
+  try {
+    const stored = localStorage.getItem(RESUME_STORAGE_KEY);
+    if (!stored) return [];
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) throw new Error("Stored resumes are not an array.");
+    return normalizeResumeRecords(parsed);
+  } catch (error) {
+    console.error("Could not load saved resumes.", error);
+    return [];
+  }
 }
 
 function makeCompanyRecord(name, id) {
@@ -766,10 +823,21 @@ function renderApplicationDetail(application) {
           ${detailFact("Date applied", application.dateApplied ? formatDate(application.dateApplied) : "")}
           ${detailFact("Application deadline", application.deadline ? formatDate(application.deadline) : "")}
           ${detailFact("Follow-up date", application.followUpDate ? formatDate(application.followUpDate) : "")}
-          ${detailFact("Resume used", application.resumeName)}
+          <div class="detail-fact"><dt>Resume used</dt><dd>${applicationResumeMarkup(application)}</dd></div>
         </dl></article>
       </div>
     </div>`;
+}
+
+function applicationResumeMarkup(application) {
+  const snapshot = application.resumeSnapshot;
+  const name = application.resumeName || (snapshot && snapshot.name) || "";
+  if (!name) return displayValue("");
+  const score = snapshot && snapshot.atsScore != null ? ` · ATS score ${snapshot.atsScore}/100` : "";
+  const fileName = snapshot && snapshot.fileName ? `<small>${escapeHtml(snapshot.fileName)}</small>` : "";
+  const resume = state.resumes.find((item) => item.id === application.resumeId);
+  const link = resume ? `<button class="inline-resume-link" type="button" data-open-resume="${escapeAttribute(resume.id)}">Open resume</button>` : "";
+  return `<span>${escapeHtml(name)}${score ? escapeHtml(score) : ""}</span>${fileName}${link}`;
 }
 
 function renderApplicationsPage() {
@@ -793,6 +861,7 @@ function refreshDataViews() {
   renderDashboard();
   if (state.route === "applications") renderApplicationsPage();
   if (state.route === "companies") renderCompaniesPage();
+  if (state.route === "resumes") renderResumesPage();
 }
 
 function createApplication(application) {
@@ -1188,6 +1257,520 @@ function initCompanyManagement() {
   });
 }
 
+function openResumeDatabase() {
+  if (!("indexedDB" in window)) return Promise.reject(new Error("IndexedDB is unavailable in this browser."));
+  if (!state.resumeDatabasePromise) {
+    state.resumeDatabasePromise = new Promise((resolve, reject) => {
+      let request;
+      try {
+        request = indexedDB.open(RESUME_DATABASE_NAME, RESUME_DATABASE_VERSION);
+      } catch (error) {
+        state.resumeDatabasePromise = null;
+        reject(error);
+        return;
+      }
+      request.onupgradeneeded = () => {
+        const database = request.result;
+        if (!database.objectStoreNames.contains(RESUME_FILE_STORE)) {
+          database.createObjectStore(RESUME_FILE_STORE, { keyPath: "id" });
+        }
+      };
+      request.onerror = () => {
+        state.resumeDatabasePromise = null;
+        reject(request.error || new Error("Could not open resume storage."));
+      };
+      request.onsuccess = () => {
+        const database = request.result;
+        database.onversionchange = () => {
+          database.close();
+          state.resumeDatabasePromise = null;
+        };
+        resolve(database);
+      };
+    });
+  }
+  return state.resumeDatabasePromise;
+}
+
+async function resumeFileRequest(method, value) {
+  const database = await openResumeDatabase();
+  return new Promise((resolve, reject) => {
+    let transaction;
+    let request;
+    try {
+      transaction = database.transaction(RESUME_FILE_STORE, method === "get" ? "readonly" : "readwrite");
+      const store = transaction.objectStore(RESUME_FILE_STORE);
+      request = method === "put" ? store.put(value) : method === "delete" ? store.delete(value) : store.get(value);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+    let result;
+    request.onsuccess = () => { result = request.result; };
+    request.onerror = () => reject(request.error || new Error("Resume file operation failed."));
+    transaction.oncomplete = () => resolve(result);
+    transaction.onerror = () => reject(transaction.error || new Error("Resume file transaction failed."));
+    transaction.onabort = () => reject(transaction.error || new Error("Resume file transaction was aborted."));
+  });
+}
+
+async function hasPdfHeader(file) {
+  const header = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+  return header.length === 5 && String.fromCharCode(...header) === "%PDF-";
+}
+
+async function validateResumeFile(file) {
+  if (!file) {
+    showToast("Choose a PDF file to upload.");
+    return false;
+  }
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+    showToast("Only PDF resumes can be uploaded.");
+    return false;
+  }
+  if (file.size > RESUME_MAX_FILE_SIZE) {
+    showToast("Resume files must be 20 MB or smaller.");
+    return false;
+  }
+  if (file.size === 0 || !await hasPdfHeader(file)) {
+    showToast("This file is not a valid PDF.");
+    return false;
+  }
+  return true;
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "Size unavailable";
+  return bytes < 1024 * 1024
+    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+    : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function resumeApplicationCount(id) {
+  return state.applications.filter((application) => application.resumeId === id).length;
+}
+
+function resumeCard(resume) {
+  const score = resume.atsScore == null
+    ? '<span class="resume-score resume-score-empty">ATS score not entered</span>'
+    : `<span class="resume-score">ATS ${resume.atsScore}/100</span>`;
+  const count = resumeApplicationCount(resume.id);
+  return `
+    <article class="resume-card">
+      <div class="resume-card-top">
+        <span class="resume-document-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5v5h5M8.5 13h7m-7 3.5h7"/></svg><small>PDF</small></span>
+        <div class="resume-card-info">
+          <button type="button" class="resume-title-button" data-open-resume="${escapeAttribute(resume.id)}">${escapeHtml(resume.name)}</button>
+          <span class="resume-file-name" title="${escapeAttribute(resume.fileName)}">${escapeHtml(resume.fileName)}</span>
+        </div>
+        <button class="resume-more-button" type="button" data-edit-resume="${escapeAttribute(resume.id)}" aria-label="Edit ${escapeAttribute(resume.name)}">Edit</button>
+      </div>
+      <div class="resume-card-meta"><span>Uploaded ${escapeHtml(formatDate(resume.uploadedAt.slice(0, 10)))}</span>${score}</div>
+      <div class="resume-card-footer"><span>${count} ${count === 1 ? "application" : "applications"}</span><button type="button" class="resume-preview-button" data-preview-resume="${escapeAttribute(resume.id)}">Preview PDF</button></div>
+    </article>`;
+}
+
+function renderResumeDirectory() {
+  const query = document.querySelector("#resume-search").value.trim().toLocaleLowerCase();
+  const resumes = [...state.resumes]
+    .filter((resume) => `${resume.name} ${resume.fileName} ${resume.notes}`.toLocaleLowerCase().includes(query))
+    .sort((first, second) => second.uploadedAt.localeCompare(first.uploadedAt));
+  document.querySelector("#resume-results-count").textContent = `${resumes.length} ${resumes.length === 1 ? "resume" : "resumes"}`;
+  document.querySelector("#resume-results").innerHTML = resumes.length
+    ? `<div class="resume-grid">${resumes.map(resumeCard).join("")}</div>`
+    : `<div class="applications-empty"><strong>${state.resumes.length ? "No matching resumes" : "Your resume library is ready"}</strong><span>${state.resumes.length ? "Try another name or file name." : "Upload a PDF to keep your resume versions ready for applications."}</span>${state.resumes.length ? "" : '<button class="primary-button empty-resume-upload" type="button">Upload a resume</button>'}</div>`;
+}
+
+function resumeApplicationRows(resume) {
+  const applications = state.applications.filter((application) => application.resumeId === resume.id)
+    .sort((first, second) => (second.dateApplied || second.dateDiscovered).localeCompare(first.dateApplied || first.dateDiscovered));
+  if (!applications.length) return '<div class="empty-state">No applications use this resume yet.</div>';
+  return `<div class="resume-application-list">${applications.map((application) => `
+    <article class="resume-application-row">
+      <div class="resume-application-identity">
+        <button type="button" class="application-open-button" data-open-application="${escapeAttribute(application.id)}"><span class="application-title">${escapeHtml(application.title)}</span></button>
+        <span class="application-company">${escapeHtml(getApplicationCompanyName(application) || "No company association")}</span>
+      </div>
+      <time>${escapeHtml(application.dateApplied ? formatDate(application.dateApplied) : "Not applied")}</time>
+      <span class="status-pill ${statusClass[application.status]}">${escapeHtml(application.status)}</span>
+    </article>`).join("")}</div>`;
+}
+
+function renderResumeDetail(resume) {
+  const target = document.querySelector("#resume-detail-view");
+  target.innerHTML = `
+    <button class="detail-back" type="button" data-back-to-resumes>${iconMarkup.chevron}All resumes</button>
+    <div class="resume-detail-heading">
+      <div class="resume-detail-identity">
+        <span class="resume-document-mark resume-document-mark-large" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5v5h5M8.5 13h7m-7 3.5h7"/></svg><small>PDF</small></span>
+        <div><p class="eyebrow">RESUME DETAILS</p><h1>${escapeHtml(resume.name)}</h1><p>${escapeHtml(resume.fileName)} · Uploaded ${escapeHtml(formatDate(resume.uploadedAt.slice(0, 10)))}</p></div>
+      </div>
+      <div class="resume-detail-actions">
+        <button class="primary-button" type="button" data-preview-resume="${escapeAttribute(resume.id)}">Preview PDF</button>
+        <button class="secondary-button" type="button" data-edit-resume="${escapeAttribute(resume.id)}">Edit details</button>
+        <button class="secondary-button danger-button" type="button" data-delete-resume="${escapeAttribute(resume.id)}">Delete</button>
+      </div>
+    </div>
+    <div class="resume-detail-grid">
+      <article class="detail-card">
+        <h2>Resume information</h2>
+        <dl class="resume-facts">
+          <div><dt>ATS score</dt><dd>${resume.atsScore == null ? "Not entered" : `${resume.atsScore}/100 · entered manually`}</dd></div>
+          <div><dt>File size</dt><dd>${escapeHtml(formatFileSize(resume.size))}</dd></div>
+          <div><dt>Applications using this resume</dt><dd>${resumeApplicationCount(resume.id)}</dd></div>
+        </dl>
+        <h3 class="resume-notes-heading">Notes</h3><p class="resume-notes">${displayValue(resume.notes)}</p>
+      </article>
+      <article class="detail-card resume-usage-card"><div class="resume-usage-heading"><h2>Application history</h2><span class="pipeline-total">${resumeApplicationCount(resume.id)} linked</span></div>${resumeApplicationRows(resume)}</article>
+    </div>`;
+}
+
+function renderResumesPage() {
+  const resume = state.resumes.find((item) => item.id === state.activeResumeId);
+  if (state.resumeMode === "detail" && resume) {
+    document.querySelector("#resume-directory-view").hidden = true;
+    document.querySelector("#resume-detail-view").hidden = false;
+    renderResumeDetail(resume);
+  } else {
+    state.resumeMode = "list";
+    state.activeResumeId = null;
+    document.querySelector("#resume-directory-view").hidden = false;
+    document.querySelector("#resume-detail-view").hidden = true;
+    renderResumeDirectory();
+  }
+}
+
+function openResumeDetail(id) {
+  if (!state.resumes.some((resume) => resume.id === id)) {
+    showToast("This resume could not be found.");
+    return;
+  }
+  routeTo("resumes", true);
+  state.resumeMode = "detail";
+  state.activeResumeId = id;
+  renderResumesPage();
+}
+
+async function openResumePreview(id) {
+  const resume = state.resumes.find((item) => item.id === id);
+  if (!resume) {
+    showToast("This resume could not be found.");
+    return;
+  }
+  try {
+    const stored = await resumeFileRequest("get", id);
+    const file = stored && stored.file;
+    if (!file) {
+      showToast("The PDF file is unavailable. Its saved metadata and application history are still here.");
+      return;
+    }
+    if (!await hasPdfHeader(file)) {
+      showToast("This stored file is not a valid PDF.");
+      return;
+    }
+    if (state.resumeObjectUrl) URL.revokeObjectURL(state.resumeObjectUrl);
+    state.resumeObjectUrl = URL.createObjectURL(file);
+    document.querySelector("#resume-preview-title").textContent = resume.name;
+    document.querySelector("#resume-preview-frame").src = state.resumeObjectUrl;
+    document.querySelector("#resume-preview-dialog").showModal();
+  } catch (error) {
+    console.error("Could not preview the saved resume.", error);
+    showToast("Could not open this PDF. Check browser storage and try again.");
+  }
+}
+
+function openResumeForm(context = "library") {
+  state.editingResumeId = null;
+  state.resumeUploadContext = context;
+  const form = document.querySelector("#resume-form");
+  form.reset();
+  document.querySelector("#resume-dialog-title").textContent = "Upload a resume";
+  document.querySelector("#save-resume-button").textContent = "Save resume";
+  document.querySelector("#resume-file-field").hidden = false;
+  document.querySelector("#resume-file").required = true;
+  document.querySelector("#resume-edit-file").hidden = true;
+  document.querySelector("#resume-dialog").showModal();
+}
+
+function openEditResumeForm(id) {
+  const resume = state.resumes.find((item) => item.id === id);
+  if (!resume) {
+    showToast("This resume could not be found.");
+    return;
+  }
+  state.editingResumeId = id;
+  const form = document.querySelector("#resume-form");
+  form.reset();
+  document.querySelector("#resume-dialog-title").textContent = "Edit resume details";
+  document.querySelector("#save-resume-button").textContent = "Save changes";
+  document.querySelector("#resume-file-field").hidden = true;
+  document.querySelector("#resume-file").required = false;
+  document.querySelector("#resume-edit-file").textContent = `PDF file: ${resume.fileName}`;
+  document.querySelector("#resume-edit-file").hidden = false;
+  document.querySelector("#resume-name").value = resume.name;
+  document.querySelector("#resume-score").value = resume.atsScore == null ? "" : resume.atsScore;
+  document.querySelector("#resume-notes").value = resume.notes;
+  document.querySelector("#resume-dialog").showModal();
+}
+
+function readResumeForm() {
+  const rawScore = document.querySelector("#resume-score").value;
+  return {
+    name: document.querySelector("#resume-name").value.trim(),
+    atsScore: rawScore === "" ? null : Number(rawScore),
+    notes: document.querySelector("#resume-notes").value.trim()
+  };
+}
+
+function persistResumeRecords(records) {
+  try {
+    localStorage.setItem(RESUME_STORAGE_KEY, JSON.stringify(records));
+    return true;
+  } catch (error) {
+    console.error("Could not save resume metadata.", error);
+    showToast("Resume details could not be saved. Check available browser storage.");
+    return false;
+  }
+}
+
+function persistResumeDeletionRecords(resumes, applications) {
+  let previousResumes;
+  let previousApplications;
+  try {
+    previousResumes = localStorage.getItem(RESUME_STORAGE_KEY);
+    previousApplications = localStorage.getItem(STORAGE_KEY);
+    localStorage.setItem(RESUME_STORAGE_KEY, JSON.stringify(resumes));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
+    return { previousResumes, previousApplications };
+  } catch (error) {
+    console.error("Could not save resume deletion.", error);
+    try {
+      if (previousResumes === null) localStorage.removeItem(RESUME_STORAGE_KEY);
+      else if (previousResumes !== undefined) localStorage.setItem(RESUME_STORAGE_KEY, previousResumes);
+      if (previousApplications === null) localStorage.removeItem(STORAGE_KEY);
+      else if (previousApplications !== undefined) localStorage.setItem(STORAGE_KEY, previousApplications);
+    } catch (rollbackError) {
+      console.error("Could not restore data after resume deletion failed.", rollbackError);
+    }
+    showToast("The resume could not be deleted because browser storage failed.");
+    return null;
+  }
+}
+
+function restoreResumeDeletionRecords(previous) {
+  try {
+    if (previous.previousResumes === null) localStorage.removeItem(RESUME_STORAGE_KEY);
+    else localStorage.setItem(RESUME_STORAGE_KEY, previous.previousResumes);
+    if (previous.previousApplications === null) localStorage.removeItem(STORAGE_KEY);
+    else localStorage.setItem(STORAGE_KEY, previous.previousApplications);
+    return true;
+  } catch (error) {
+    console.error("Could not restore data after resume file deletion failed.", error);
+    return false;
+  }
+}
+
+async function saveResumeFromForm() {
+  const values = readResumeForm();
+  if (state.editingResumeId) {
+    const existing = state.resumes.find((resume) => resume.id === state.editingResumeId);
+    if (!existing) {
+      showToast("This resume could not be found.");
+      return false;
+    }
+    const updated = { ...existing, ...values };
+    const records = state.resumes.map((resume) => resume.id === existing.id ? updated : resume);
+    if (!persistResumeRecords(records)) return false;
+    state.resumes = records;
+    if (state.route === "resumes") renderResumesPage();
+    return true;
+  }
+
+  const file = document.querySelector("#resume-file").files[0];
+  if (!await validateResumeFile(file)) return false;
+  const id = createId("resume");
+  const record = {
+    id,
+    ...values,
+    fileName: file.name,
+    uploadedAt: new Date().toISOString(),
+    size: file.size
+  };
+  await resumeFileRequest("put", { id, file });
+  const records = [...state.resumes, record];
+  if (!persistResumeRecords(records)) {
+    try {
+      await resumeFileRequest("delete", id);
+    } catch (error) {
+      console.error("Could not remove an unregistered resume file.", error);
+    }
+    return false;
+  }
+  state.resumes = records;
+  if (state.resumeUploadContext === "application") {
+    renderResumeSelect(id);
+  } else {
+    if (state.route !== "resumes") routeTo("resumes");
+    state.resumeMode = "detail";
+    state.activeResumeId = id;
+    renderResumesPage();
+  }
+  return true;
+}
+
+function requestResumeDeletion(id) {
+  const resume = state.resumes.find((item) => item.id === id);
+  if (!resume) {
+    showToast("This resume could not be found.");
+    return;
+  }
+  state.pendingResumeDeleteId = id;
+  const count = resumeApplicationCount(id);
+  document.querySelector("#resume-delete-title").textContent = `Delete ${resume.name}?`;
+  document.querySelector("#resume-delete-copy").textContent = count
+    ? `This removes the PDF and resume entry but keeps ${count} ${count === 1 ? "application" : "applications"}. Each keeps a snapshot of the resume name and metadata. This cannot be undone.`
+    : "This removes the PDF and resume entry. This cannot be undone.";
+  document.querySelector("#resume-delete-dialog").showModal();
+}
+
+async function deleteResume(id) {
+  const resume = state.resumes.find((item) => item.id === id);
+  if (!resume) {
+    showToast("This resume could not be found.");
+    return false;
+  }
+  const resumes = state.resumes.filter((item) => item.id !== id);
+  const applications = state.applications.map((application) => {
+    if (application.resumeId !== id) return application;
+    const snapshot = application.resumeSnapshot || resumeSnapshotFromRecord(resume);
+    return {
+      ...application,
+      resumeId: "",
+      resumeName: application.resumeName || snapshot.name,
+      resumeSnapshot: snapshot,
+      updatedAt: new Date().toISOString()
+    };
+  });
+  const previous = persistResumeDeletionRecords(resumes, applications);
+  if (!previous) return false;
+  try {
+    await resumeFileRequest("delete", id);
+  } catch (error) {
+    console.error("Could not delete the PDF file from IndexedDB.", error);
+    if (!restoreResumeDeletionRecords(previous)) {
+      showToast("Resume deletion failed and stored data could not be fully restored. Reload to check the library.");
+    } else {
+      showToast("The PDF could not be deleted from browser storage. The resume was kept.");
+    }
+    return false;
+  }
+  state.resumes = resumes;
+  state.applications = applications;
+  state.resumeMode = "list";
+  state.activeResumeId = null;
+  refreshDataViews();
+  return true;
+}
+
+function handleResumeViewClick(event) {
+  const target = event.target.closest("button");
+  if (!target) return;
+  if (target.matches("[data-open-resume]")) openResumeDetail(target.dataset.openResume);
+  else if (target.matches("[data-preview-resume]")) openResumePreview(target.dataset.previewResume);
+  else if (target.matches("[data-edit-resume]")) openEditResumeForm(target.dataset.editResume);
+  else if (target.matches("[data-delete-resume]")) requestResumeDeletion(target.dataset.deleteResume);
+  else if (target.matches("[data-open-application]")) openApplicationDetail(target.dataset.openApplication);
+  else if (target.matches("[data-back-to-resumes]")) {
+    state.resumeMode = "list";
+    state.activeResumeId = null;
+    renderResumesPage();
+  } else if (target.matches(".empty-resume-upload")) openResumeForm();
+}
+
+function initResumeManagement() {
+  const view = document.querySelector("#resumes-view");
+  view.addEventListener("input", (event) => {
+    if (event.target.id === "resume-search") renderResumeDirectory();
+  });
+  view.addEventListener("click", handleResumeViewClick);
+  document.querySelector("#add-resume-button").addEventListener("click", () => openResumeForm());
+  document.querySelector("#upload-resume-from-application").addEventListener("click", () => openResumeForm("application"));
+  document.querySelector("#resume-file").addEventListener("change", (event) => {
+    const nameInput = document.querySelector("#resume-name");
+    if (!nameInput.value.trim() && event.target.files[0]) {
+      nameInput.value = event.target.files[0].name.replace(/\.pdf$/i, "").replace(/[_-]+/g, " ");
+    }
+  });
+  const dialog = document.querySelector("#resume-dialog");
+  const closeDialog = () => {
+    dialog.close();
+    state.editingResumeId = null;
+  };
+  document.querySelector(".resume-dialog-close").addEventListener("click", closeDialog);
+  document.querySelector("#cancel-resume-form").addEventListener("click", closeDialog);
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) closeDialog();
+  });
+  document.querySelector("#resume-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    const button = document.querySelector("#save-resume-button");
+    const editing = Boolean(state.editingResumeId);
+    const context = state.resumeUploadContext;
+    button.disabled = true;
+    try {
+      if (await saveResumeFromForm()) {
+        closeDialog();
+        showToast(editing ? "Resume details updated." : context === "application" ? "Resume uploaded and selected for this application." : "Resume uploaded.");
+      }
+    } catch (error) {
+      console.error("Could not save the resume.", error);
+      showToast("Could not save this resume. Check browser storage and try again.");
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  const previewDialog = document.querySelector("#resume-preview-dialog");
+  const closePreview = () => {
+    previewDialog.close();
+    document.querySelector("#resume-preview-frame").src = "about:blank";
+    if (state.resumeObjectUrl) URL.revokeObjectURL(state.resumeObjectUrl);
+    state.resumeObjectUrl = null;
+  };
+  document.querySelector(".resume-preview-close").addEventListener("click", closePreview);
+  previewDialog.addEventListener("close", () => {
+    if (state.resumeObjectUrl) URL.revokeObjectURL(state.resumeObjectUrl);
+    state.resumeObjectUrl = null;
+    document.querySelector("#resume-preview-frame").src = "about:blank";
+  });
+  document.querySelector("#cancel-resume-delete").addEventListener("click", () => {
+    state.pendingResumeDeleteId = null;
+    document.querySelector("#resume-delete-dialog").close();
+  });
+  document.querySelector("#confirm-resume-delete").addEventListener("click", async () => {
+    const id = state.pendingResumeDeleteId;
+    if (!id) return;
+    const button = document.querySelector("#confirm-resume-delete");
+    button.disabled = true;
+    try {
+      if (await deleteResume(id)) {
+        state.pendingResumeDeleteId = null;
+        document.querySelector("#resume-delete-dialog").close();
+        showToast("Resume deleted. Application history was kept.");
+      }
+    } finally {
+      button.disabled = false;
+    }
+  });
+  document.querySelector("#resume-delete-dialog").addEventListener("click", (event) => {
+    if (event.target === event.currentTarget) {
+      state.pendingResumeDeleteId = null;
+      event.currentTarget.close();
+    }
+  });
+}
+
 function updateApplicationStatus(id, status) {
   if (!statusOrder.includes(status)) {
     showToast("Choose a valid application status.");
@@ -1205,18 +1788,40 @@ function updateApplicationStatus(id, status) {
   if (updateApplication(id, changes)) showToast(`Status updated to ${status}.`);
 }
 
-function loadResumeOptions() {
-  try {
-    const stored = localStorage.getItem(RESUME_STORAGE_KEY);
-    if (!stored) return [];
-    const parsed = JSON.parse(stored);
-    if (!Array.isArray(parsed)) throw new Error("Stored resumes are not an array.");
-    return parsed.filter((resume) => resume && typeof resume === "object" && (resume.id || resume.name))
-      .map((resume) => ({ id: String(resume.id || resume.name), name: String(resume.name || resume.title || "Untitled resume") }));
-  } catch (error) {
-    console.error("Could not load saved resumes.", error);
-    return [];
+function resumeSnapshotFromRecord(resume) {
+  return {
+    name: resume.name,
+    fileName: resume.fileName,
+    uploadedAt: resume.uploadedAt,
+    atsScore: resume.atsScore
+  };
+}
+
+function resumeScoreLabel(score) {
+  return score == null ? "ATS score not entered" : `ATS ${score}/100`;
+}
+
+function renderResumeSelect(selectedId, snapshot) {
+  const select = document.querySelector("#form-resume");
+  select.innerHTML = "";
+  select.add(new Option("No resume selected", ""));
+  state.resumes.forEach((resume) => {
+    select.add(new Option(`${resume.name} — ${resumeScoreLabel(resume.atsScore)}`, resume.id));
+  });
+  if (selectedId && !state.resumes.some((resume) => resume.id === selectedId)) {
+    const name = (snapshot && snapshot.name) || "Previously used resume";
+    select.add(new Option(`${name} — file unavailable`, selectedId));
   }
+  select.value = selectedId || "";
+  syncResumeSelectionSummary();
+}
+
+function syncResumeSelectionSummary() {
+  const id = document.querySelector("#form-resume").value;
+  const resume = state.resumes.find((item) => item.id === id);
+  document.querySelector("#resume-selection-summary").textContent = resume
+    ? `${resume.name} · ${resumeScoreLabel(resume.atsScore)}`
+    : "No resume selected";
 }
 
 function populateApplicationFormOptions(current) {
@@ -1232,18 +1837,9 @@ function populateApplicationFormOptions(current) {
     sourceSelect.add(option);
   }
 
-  const resumeSelect = document.querySelector("#form-resume");
-  const resumes = loadResumeOptions();
-  resumeSelect.innerHTML = "";
-  if (!resumes.length) resumeSelect.add(new Option("No resumes uploaded yet — library coming in Phase 4", ""));
-  else resumeSelect.add(new Option("No resume selected", ""));
-  resumes.forEach((resume) => resumeSelect.add(new Option(resume.name, resume.id)));
-  if (current && current.resumeId && !resumes.some((resume) => resume.id === current.resumeId)) {
-    resumeSelect.add(new Option(current.resumeName || "Previously selected resume", current.resumeId));
-  }
+  renderResumeSelect(current && current.resumeId, current && current.resumeSnapshot);
   statusSelect.value = current ? current.status : "Saved";
   if (current) {
-    resumeSelect.value = current.resumeId;
     sourceSelect.value = current.source;
   }
   document.querySelector("#custom-source-field").hidden = sourceSelect.value !== "Other";
@@ -1343,12 +1939,14 @@ function readApplicationForm() {
   const form = document.querySelector("#application-form");
   const values = Object.fromEntries(new FormData(form).entries());
   const companyName = String(values.companyName || "").trim();
-  const selectedResume = document.querySelector("#form-resume");
   const status = state.formIntent === "saved" ? "Saved" : values.status;
   const existing = state.editingApplicationId
     ? state.applications.find((application) => application.id === state.editingApplicationId)
     : null;
-  const resumeOption = selectedResume.selectedOptions[0];
+  const selectedResume = state.resumes.find((resume) => resume.id === values.resumeId);
+  const resumeSnapshot = selectedResume
+    ? resumeSnapshotFromRecord(selectedResume)
+    : (existing && existing.resumeSnapshot) || null;
   const now = new Date().toISOString();
   return {
     ...(existing || {}),
@@ -1375,7 +1973,8 @@ function readApplicationForm() {
     deadline: values.deadline || "",
     followUpDate: values.followUpDate || "",
     resumeId: values.resumeId || "",
-    resumeName: values.resumeId ? resumeOption.textContent : "",
+    resumeName: selectedResume ? selectedResume.name : (existing && existing.resumeName) || (resumeSnapshot && resumeSnapshot.name) || "",
+    resumeSnapshot,
     notes: String(values.notes || "").trim(),
     createdAt: existing ? existing.createdAt : now,
     updatedAt: now
@@ -1398,6 +1997,7 @@ function handleApplicationViewClick(event) {
   if (!target) return;
   if (target.matches("[data-open-application]")) openApplicationDetail(target.dataset.openApplication);
   else if (target.matches("[data-open-company]") && target.dataset.openCompany) openCompanyProfile(target.dataset.openCompany);
+  else if (target.matches("[data-open-resume]")) openResumeDetail(target.dataset.openResume);
   else if (target.matches("[data-edit-application]")) openEditApplicationDialog(target.dataset.editApplication);
   else if (target.matches("[data-delete-application]")) {
     const application = state.applications.find((item) => item.id === target.dataset.deleteApplication);
@@ -1430,6 +2030,7 @@ function initApplicationManagement() {
     button.addEventListener("click", () => selectApplicationIntent(button.dataset.applicationIntent));
   });
   document.querySelector("#form-status").addEventListener("change", syncApplicationDateRequirement);
+  document.querySelector("#form-resume").addEventListener("change", syncResumeSelectionSummary);
   document.querySelector("#form-source").addEventListener("change", (event) => {
     document.querySelector("#custom-source-field").hidden = event.target.value !== "Other";
   });
@@ -1469,7 +2070,6 @@ function initApplicationManagement() {
 }
 
 const pageDescriptions = {
-  resumes: ["Resumes", "Your tailored resumes will have a dedicated home here. Resume management is planned for a later phase.", "resumes"],
   settings: ["Settings", "Theme preferences and workspace options will live here as ApplyTrack grows.", "settings"]
 };
 
@@ -1478,6 +2078,7 @@ function routeTo(route, preserveApplicationMode) {
   const dashboard = route === "dashboard";
   const applications = route === "applications";
   const companies = route === "companies";
+  const resumes = route === "resumes";
   if (applications && !preserveApplicationMode) {
     state.applicationMode = "list";
     state.activeApplicationId = null;
@@ -1486,10 +2087,15 @@ function routeTo(route, preserveApplicationMode) {
     state.companyMode = "list";
     state.activeCompanyId = null;
   }
+  if (resumes && !preserveApplicationMode) {
+    state.resumeMode = "list";
+    state.activeResumeId = null;
+  }
   document.querySelector("#dashboard-view").classList.toggle("is-visible", dashboard);
   document.querySelector("#applications-view").classList.toggle("is-visible", applications);
   document.querySelector("#companies-view").classList.toggle("is-visible", companies);
-  document.querySelector("#placeholder-view").classList.toggle("is-visible", !dashboard && !applications && !companies);
+  document.querySelector("#resumes-view").classList.toggle("is-visible", resumes);
+  document.querySelector("#placeholder-view").classList.toggle("is-visible", !dashboard && !applications && !companies && !resumes);
   document.querySelectorAll(".nav-link[data-route]").forEach((link) => {
     const active = link.dataset.route === route;
     link.classList.toggle("is-active", active);
@@ -1500,8 +2106,10 @@ function routeTo(route, preserveApplicationMode) {
     ? ["Applications", "A focused home for every opportunity you're pursuing.", "opportunities"]
     : companies
       ? ["Companies", "Your company directory and profiles.", "companies"]
-      : pageDescriptions[route] || pageDescriptions.resumes;
-  if (!dashboard && !applications && !companies) {
+      : resumes
+        ? ["Resumes", "Your resume library and application history.", "resumes"]
+        : pageDescriptions[route] || pageDescriptions.settings;
+  if (!dashboard && !applications && !companies && !resumes) {
     document.querySelector("#placeholder-title").textContent = title;
     document.querySelector("#placeholder-copy").textContent = copy;
     document.querySelector("#placeholder-mark").innerHTML = iconMarkup[icon] || iconMarkup.opportunities;
@@ -1513,6 +2121,7 @@ function routeTo(route, preserveApplicationMode) {
   if (location.hash !== `#${route}`) history.replaceState(null, "", `#${route}`);
   if (applications) renderApplicationsPage();
   if (companies) renderCompaniesPage();
+  if (resumes) renderResumesPage();
 }
 
 function setTheme(theme) {
@@ -1579,10 +2188,10 @@ function initNavigation() {
   });
   document.querySelector("#back-to-dashboard").addEventListener("click", () => routeTo("dashboard"));
   const initialRoute = location.hash.slice(1);
-  routeTo(["dashboard", "applications", "companies", ...Object.keys(pageDescriptions)].includes(initialRoute) ? initialRoute : "dashboard");
+  routeTo(["dashboard", "applications", "companies", "resumes", ...Object.keys(pageDescriptions)].includes(initialRoute) ? initialRoute : "dashboard");
   window.addEventListener("hashchange", () => {
     const route = location.hash.slice(1);
-    if (["dashboard", "applications", "companies", ...Object.keys(pageDescriptions)].includes(route)) routeTo(route);
+    if (["dashboard", "applications", "companies", "resumes", ...Object.keys(pageDescriptions)].includes(route)) routeTo(route);
   });
 }
 
@@ -1617,6 +2226,7 @@ function init() {
   initSidebar();
   initApplicationManagement();
   initCompanyManagement();
+  initResumeManagement();
   initNavigation();
   initSearch();
   initDateLabels();

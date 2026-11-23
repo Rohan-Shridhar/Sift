@@ -439,6 +439,65 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 .company-delete-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .danger-solid-button { background: #b94f58; border-color: #b94f58; }
 .danger-solid-button:hover { background: #a9424b; border-color: #a9424b; }
+.resume-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow-card); }
+.resume-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 15px; }
+.resume-card { min-width: 0; padding: 15px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow-card); }
+.resume-card-top { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.resume-document-mark { position: relative; display: grid; width: 43px; height: 48px; flex: 0 0 auto; align-content: start; justify-items: center; padding-top: 6px; color: var(--accent); background: var(--accent-soft); border-radius: 8px; }
+.resume-document-mark svg { width: 19px; height: 22px; }
+.resume-document-mark small { margin-top: 1px; color: var(--accent); font-size: 7px; font-weight: 800; letter-spacing: .4px; }
+.resume-card-info { display: grid; min-width: 0; gap: 4px; }
+.resume-title-button { overflow: hidden; padding: 0; color: var(--text); background: transparent; border: 0; cursor: pointer; font-family: Manrope, sans-serif; font-size: 11px; font-weight: 700; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+.resume-title-button:hover { color: var(--accent); }
+.resume-file-name { overflow: hidden; color: var(--text-faint); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.resume-more-button { padding: 5px 7px; margin-left: auto; color: var(--text-soft); background: var(--surface-soft); border: 1px solid var(--line); border-radius: 5px; cursor: pointer; font-size: 9px; }
+.resume-more-button:hover { color: var(--accent); border-color: var(--accent); }
+.resume-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 0; margin-top: 13px; color: var(--text-faint); border-top: 1px solid var(--line); font-size: 8px; }
+.resume-score { padding: 4px 7px; color: var(--green); background: var(--green-soft); border-radius: 5px; font-size: 8px; font-weight: 600; white-space: nowrap; }
+.resume-score-empty { color: var(--text-faint); background: var(--surface-hover); font-weight: 400; }
+.resume-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text-soft); font-size: 9px; }
+.resume-preview-button { padding: 0; color: var(--accent); background: transparent; border: 0; cursor: pointer; font-size: 9px; font-weight: 600; }
+.resume-preview-button:hover { text-decoration: underline; }
+.resume-detail-view { min-width: 0; }
+.resume-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 21px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-card); }
+.resume-detail-identity { display: flex; align-items: center; gap: 15px; min-width: 0; }
+.resume-document-mark-large { width: 53px; height: 59px; padding-top: 8px; border-radius: 10px; }
+.resume-document-mark-large svg { width: 23px; height: 27px; }
+.resume-document-mark-large small { font-size: 8px; }
+.resume-detail-identity > div { min-width: 0; }
+.resume-detail-identity h1 { margin: 0; font-family: Manrope, sans-serif; font-size: 22px; letter-spacing: -.7px; }
+.resume-detail-identity p:last-child { overflow: hidden; margin: 5px 0 0; color: var(--text-soft); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.resume-detail-actions { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 7px; }
+.resume-detail-grid { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(0, 1.3fr); gap: 13px; margin-top: 13px; }
+.resume-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0; }
+.resume-facts > div { min-width: 0; }
+.resume-facts dt { margin-bottom: 5px; color: var(--text-faint); font-size: 9px; }
+.resume-facts dd { margin: 0; color: var(--text); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.resume-notes-heading { margin: 20px 0 8px; font-size: 10px; }
+.resume-notes { margin: 0; color: var(--text-soft); font-size: 10px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.resume-usage-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.resume-usage-heading h2 { margin: 0; }
+.resume-application-list { display: grid; }
+.resume-application-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 15px; padding: 11px 0; border-top: 1px solid var(--line); }
+.resume-application-identity { display: grid; min-width: 0; gap: 4px; }
+.resume-application-identity .application-open-button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resume-application-identity .application-title { font-size: 10px; }
+.resume-application-identity .application-company { margin: 0; font-size: 9px; }
+.resume-application-row time { color: var(--text-faint); font-size: 9px; white-space: nowrap; }
+.resume-picker-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: -6px; }
+.resume-picker-actions .field-hint { color: var(--text-faint); font-size: 9px; }
+.resume-picker-actions .secondary-button { min-height: 31px; font-size: 9px; }
+.resume-dialog { width: min(580px, calc(100vw - 32px)); }
+.resume-form { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+.resume-form-scroll { flex: 1; }
+.resume-form .form-grid { padding: 10px 0; }
+.resume-edit-file { margin: 3px 0 0; color: var(--text-soft); font-size: 10px; }
+.resume-form input[type="file"] { height: auto; min-height: 35px; padding: 7px; }
+.resume-preview-dialog { width: min(960px, calc(100vw - 32px)); height: min(88vh, 900px); }
+.resume-preview-dialog .dialog-shell { height: 100%; }
+.resume-preview-dialog iframe { width: 100%; min-height: 0; flex: 1; background: #e7e8eb; border: 0; }
+.inline-resume-link { display: block; padding: 0; margin-top: 5px; color: var(--accent); background: none; border: 0; cursor: pointer; font-size: 9px; text-align: left; text-decoration: underline; text-underline-offset: 2px; }
+.inline-resume-link:hover { color: var(--text); }
 .application-detail-view { min-width: 0; }
 .detail-back { display: inline-flex; align-items: center; gap: 7px; padding: 6px 0; margin-bottom: 18px; color: var(--text-soft); background: none; border: 0; cursor: pointer; font-size: 10px; }
 .detail-back:hover { color: var(--accent); }
@@ -515,6 +574,7 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   .filter-controls { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .application-results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .company-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .resume-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
   .applications-heading { align-items: flex-start; }
@@ -530,6 +590,11 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   .company-profile-grid { grid-template-columns: 1fr; }
   .company-linked-application { grid-template-columns: minmax(0, 1fr) auto; gap: 9px; }
   .company-linked-application time { grid-column: 1 / -1; }
+  .resume-detail-heading { align-items: flex-start; flex-direction: column; padding: 16px; }
+  .resume-detail-actions { width: 100%; }
+  .resume-detail-grid { grid-template-columns: 1fr; }
+  .resume-application-row { grid-template-columns: minmax(0, 1fr) auto; gap: 9px; }
+  .resume-application-row time { grid-column: 1 / -1; }
 }
 @media (max-width: 480px) {
   .applications-heading { gap: 10px; }
@@ -559,4 +624,11 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   .company-profile-actions .secondary-button { min-height: 34px; padding: 0 9px; font-size: 10px; }
   .company-applications-heading { align-items: flex-start; flex-direction: column; }
   .company-delete-content { padding: 20px 16px; }
+  .resume-toolbar { align-items: flex-start; flex-direction: column; gap: 9px; padding: 11px; }
+  .resume-grid { grid-template-columns: 1fr; gap: 9px; }
+  .resume-detail-identity { align-items: flex-start; gap: 11px; }
+  .resume-detail-identity h1 { font-size: 19px; }
+  .resume-detail-actions .secondary-button, .resume-detail-actions .primary-button { min-height: 34px; padding: 0 9px; font-size: 10px; }
+  .resume-picker-actions { align-items: flex-start; flex-direction: column; margin-top: 0; }
+  .resume-preview-dialog { width: calc(100vw - 18px); height: 92vh; }
 }

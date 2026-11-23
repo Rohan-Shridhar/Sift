@@ -234,6 +234,31 @@
             </div>
             <div class="company-profile-view" id="company-profile-view" hidden></div>
           </section>
+
+          <section class="view" id="resumes-view" data-view="resumes">
+            <div class="resume-directory-view" id="resume-directory-view">
+              <div class="page-heading applications-heading">
+                <div>
+                  <p class="eyebrow">YOUR MATERIALS</p>
+                  <h1>Resumes<span class="heading-period">.</span></h1>
+                  <p class="page-subtitle">Keep tailored versions ready for every opportunity.</p>
+                </div>
+                <button class="primary-button" id="add-resume-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                  Upload resume
+                </button>
+              </div>
+              <div class="resume-toolbar">
+                <label class="application-search">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.2 4.2"/></svg>
+                  <input id="resume-search" type="search" placeholder="Search resumes" aria-label="Search resumes">
+                </label>
+                <span class="company-results-count" id="resume-results-count" aria-live="polite"></span>
+              </div>
+              <div id="resume-results"></div>
+            </div>
+            <div class="resume-detail-view" id="resume-detail-view" hidden></div>
+          </section>
         </div>
       </main>
     </div>
@@ -326,7 +351,8 @@
                 <label class="form-field"><span>Date applied <i class="application-date-required" hidden>*</i></span><input name="dateApplied" id="form-date-applied" type="date"></label>
                 <label class="form-field"><span>Application deadline</span><input name="deadline" id="form-deadline" type="date"></label>
                 <label class="form-field"><span>Follow-up date</span><input name="followUpDate" id="form-follow-up" type="date"></label>
-                <label class="form-field form-field-wide"><span>Resume used <small>(Resume library coming in Phase 4)</small></span><select name="resumeId" id="form-resume"><option value="">No resume selected</option></select></label>
+                <label class="form-field form-field-wide"><span>Resume used</span><select name="resumeId" id="form-resume"><option value="">No resume selected</option></select></label>
+                <div class="resume-picker-actions form-field-wide"><span class="field-hint" id="resume-selection-summary">No resume selected</span><button class="secondary-button" id="upload-resume-from-application" type="button">Upload a resume</button></div>
                 <label class="form-field form-field-wide"><span>Personal notes</span><textarea name="notes" id="form-notes" rows="3" placeholder="Anything you want to remember about this opportunity"></textarea></label>
               </div>
             </section>
@@ -394,6 +420,62 @@
         <div class="company-delete-actions">
           <button class="secondary-button" id="cancel-company-delete" type="button">Cancel</button>
           <button class="primary-button danger-solid-button" id="confirm-company-delete" type="button">Delete company & keep applications</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="application-dialog resume-dialog" id="resume-dialog" aria-labelledby="resume-dialog-title">
+      <div class="dialog-shell">
+        <header class="dialog-header">
+          <div>
+            <p class="eyebrow">YOUR MATERIALS</p>
+            <h2 id="resume-dialog-title">Upload a resume</h2>
+          </div>
+          <button class="icon-button resume-dialog-close" type="button" aria-label="Close dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+          </button>
+        </header>
+        <form id="resume-form" class="resume-form">
+          <div class="form-scroll-area resume-form-scroll">
+            <section class="form-section">
+              <div class="form-grid">
+                <label class="form-field form-field-wide" id="resume-file-field"><span>PDF file <i>*</i></span><input id="resume-file" type="file" accept="application/pdf,.pdf" required><small class="field-hint">PDF only, up to 20 MB.</small></label>
+                <p class="resume-edit-file form-field-wide" id="resume-edit-file" hidden></p>
+                <label class="form-field form-field-wide"><span>Resume name <i>*</i></span><input id="resume-name" required maxlength="100" placeholder="e.g. Product Design — Fall 2026"></label>
+                <label class="form-field"><span>ATS score <small>(optional, enter manually)</small></span><input id="resume-score" type="number" min="0" max="100" step="1" placeholder="0–100"></label>
+                <label class="form-field form-field-wide"><span>Notes</span><textarea id="resume-notes" rows="4" placeholder="What this version is tailored for"></textarea></label>
+              </div>
+            </section>
+          </div>
+          <div class="dialog-footer">
+            <button class="secondary-button" id="cancel-resume-form" type="button">Cancel</button>
+            <button class="primary-button" id="save-resume-button" type="submit">Save resume</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <dialog class="application-dialog resume-preview-dialog" id="resume-preview-dialog" aria-labelledby="resume-preview-title">
+      <div class="dialog-shell">
+        <header class="dialog-header">
+          <div><p class="eyebrow">PDF PREVIEW</p><h2 id="resume-preview-title">Resume</h2></div>
+          <button class="icon-button resume-preview-close" type="button" aria-label="Close preview">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+          </button>
+        </header>
+        <iframe id="resume-preview-frame" title="Resume PDF preview"></iframe>
+      </div>
+    </dialog>
+
+    <dialog class="company-delete-dialog" id="resume-delete-dialog" aria-labelledby="resume-delete-title">
+      <div class="company-delete-content">
+        <span class="delete-warning-mark" aria-hidden="true">!</span>
+        <p class="eyebrow">PLEASE CONFIRM</p>
+        <h2 id="resume-delete-title">Delete this resume?</h2>
+        <p id="resume-delete-copy"></p>
+        <div class="company-delete-actions">
+          <button class="secondary-button" id="cancel-resume-delete" type="button">Cancel</button>
+          <button class="primary-button danger-solid-button" id="confirm-resume-delete" type="button">Delete resume</button>
         </div>
       </div>
     </dialog>
