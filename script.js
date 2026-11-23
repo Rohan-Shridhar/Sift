@@ -1,6 +1,7 @@
 "use strict";
 
 const STORAGE_KEY = "applytrack.applications.v1";
+const COMPANY_STORAGE_KEY = "applytrack.companies.v1";
 const THEME_KEY = "applytrack.theme.v1";
 const COLLAPSE_KEY = "applytrack.sidebar-collapsed.v1";
 
@@ -45,18 +46,24 @@ const seedApplications = [
   { id: "a12", title: "Product Analyst Intern", company: "Brex", location: "San Francisco, CA", mode: "Hybrid", stipend: "$42 / hr", date: "2026-10-14", status: "Applied", source: "Referral" }
 ];
 
+const initialApplications = loadApplications();
+const initialCompanyData = loadCompanyData(initialApplications);
 const state = {
-  applications: loadApplications(),
+  applications: linkApplicationsToCompanies(initialApplications, initialCompanyData),
+  companies: initialCompanyData.companies,
   filter: "",
   collapsedSections: new Set(),
   route: "dashboard",
   applicationMode: "list",
   activeApplicationId: null,
+  companyMode: "list",
+  activeCompanyId: null,
   applicationView: "cards",
   formIntent: "saved",
   editingApplicationId: null,
   toastTimer: null
 };
+persistDataRecords(state.companies, state.applications, false);
 
 function loadApplications() {
   try {
@@ -92,6 +99,14 @@ function localDateString() {
   return date.toISOString().slice(0, 10);
 }
 
+function cleanCompanyName(value) {
+  return String(value || "").normalize("NFKC").trim().replace(/\s+/g, " ");
+}
+
+function normalizeCompanyName(value) {
+  return cleanCompanyName(value).toLocaleLowerCase();
+}
+
 function normalizeApplications(records) {
   const companyIds = new Map();
   const usedIds = new Set();
@@ -101,8 +116,8 @@ function normalizeApplications(records) {
     if (!id || usedIds.has(id)) id = createId("application");
     usedIds.add(id);
 
-    const companyName = String(record.companyName || record.company || "").trim();
-    const companyKey = companyName.toLocaleLowerCase();
+    const companyName = cleanCompanyName(record.companyName || record.company || "");
+    const companyKey = normalizeCompanyName(companyName);
     const companyId = String(companyIds.get(companyKey) || record.companyId || createId("company"));
     if (companyKey) companyIds.set(companyKey, companyId);
     const status = statusOrder.includes(record.status) ? record.status : "Saved";
@@ -143,13 +158,133 @@ function normalizeApplications(records) {
   });
 }
 
-function persistApplicationRecords(records) {
+function makeCompanyRecord(name, id) {
+  const cleanName = cleanCompanyName(name);
+  const now = new Date().toISOString();
+  return {
+    id: id || createId("company"),
+    normalizedName: normalizeCompanyName(cleanName),
+    name: cleanName,
+    logo: "",
+    industry: "",
+    description: "",
+    website: "",
+    careersUrl: "",
+    contactEmail: "",
+    contactPerson: "",
+    contactDesignation: "",
+    linkedInUrl: "",
+    location: "",
+    size: "",
+    notes: "",
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
+function normalizeCompanyRecords(records) {
+  const companies = [];
+  const byName = new Map();
+  const idAliases = new Map();
+  const usedIds = new Set();
+  const textFields = ["logo", "industry", "description", "website", "careersUrl", "contactEmail", "contactPerson", "contactDesignation", "linkedInUrl", "location", "size", "notes"];
+
+  records.filter((record) => record && typeof record === "object").forEach((record) => {
+    const name = cleanCompanyName(record.name || record.companyName);
+    const key = normalizeCompanyName(name);
+    if (!key) return;
+    const previous = byName.get(key);
+    if (previous) {
+      if (record.id) idAliases.set(String(record.id), previous.id);
+      textFields.forEach((field) => {
+        if (!previous[field] && record[field]) previous[field] = String(record[field]);
+      });
+      return;
+    }
+
+    let id = String(record.id || "");
+    if (!id || usedIds.has(id)) id = createId("company");
+    usedIds.add(id);
+    const company = {
+      ...makeCompanyRecord(name, id),
+      normalizedName: key,
+      createdAt: String(record.createdAt || new Date().toISOString()),
+      updatedAt: String(record.updatedAt || new Date().toISOString())
+    };
+    textFields.forEach((field) => { company[field] = String(record[field] || ""); });
+    byName.set(key, company);
+    companies.push(company);
+    if (record.id) idAliases.set(String(record.id), id);
+  });
+  return { companies, idAliases };
+}
+
+function loadCompanyData(applications) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    const stored = localStorage.getItem(COMPANY_STORAGE_KEY);
+    let parsed = stored ? JSON.parse(stored) : [];
+    if (!Array.isArray(parsed)) throw new Error("Stored companies are not an array.");
+    const normalized = normalizeCompanyRecords(parsed);
+    const companies = normalized.companies;
+    const byName = new Map(companies.map((company) => [company.normalizedName, company]));
+    const byId = new Map(companies.map((company) => [company.id, company]));
+    const idAliases = normalized.idAliases;
+    applications.forEach((application) => {
+      const name = cleanCompanyName(application.companyName || "");
+      const key = normalizeCompanyName(name);
+      const aliasedId = idAliases.get(application.companyId) || application.companyId;
+      let company = byId.get(aliasedId) || byName.get(key);
+      if (!company && !key) return;
+      if (!company) {
+        company = makeCompanyRecord(name, aliasedId);
+        companies.push(company);
+        byName.set(key, company);
+        byId.set(company.id, company);
+      }
+      if (application.companyId) idAliases.set(application.companyId, company.id);
+    });
+    return { companies, idAliases };
+  } catch (error) {
+    console.error("Could not load saved companies.", error);
+    const fallback = normalizeCompanyRecords(applications.map((application) => ({
+      id: application.companyId,
+      name: application.companyName
+    })));
+    return fallback;
+  }
+}
+
+function linkApplicationsToCompanies(applications, companyData) {
+  const byId = new Map(companyData.companies.map((company) => [company.id, company]));
+  const byName = new Map(companyData.companies.map((company) => [company.normalizedName, company]));
+  return applications.map((application) => {
+    const { companyName, company, ...record } = application;
+    const existing = byId.get(companyData.idAliases.get(application.companyId) || application.companyId);
+    const matched = existing || byName.get(normalizeCompanyName(companyName || company || ""));
+    return { ...record, companyId: matched ? matched.id : null };
+  });
+}
+
+function persistDataRecords(companies, applications, notify = true) {
+  let oldCompanies;
+  let oldApplications;
+  try {
+    oldCompanies = localStorage.getItem(COMPANY_STORAGE_KEY);
+    oldApplications = localStorage.getItem(STORAGE_KEY);
+    localStorage.setItem(COMPANY_STORAGE_KEY, JSON.stringify(companies));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
     return true;
   } catch (error) {
-    console.error("Could not save applications.", error);
-    showToast("Your changes could not be saved. Check available browser storage and try again.");
+    console.error("Could not save application and company data.", error);
+    try {
+      if (oldCompanies === null) localStorage.removeItem(COMPANY_STORAGE_KEY);
+      else if (oldCompanies !== undefined) localStorage.setItem(COMPANY_STORAGE_KEY, oldCompanies);
+      if (oldApplications === null) localStorage.removeItem(STORAGE_KEY);
+      else if (oldApplications !== undefined) localStorage.setItem(STORAGE_KEY, oldApplications);
+    } catch (rollbackError) {
+      console.error("Could not restore the previous application and company data.", rollbackError);
+    }
+    if (notify) showToast("Your changes could not be saved. Check available browser storage and try again.");
     return false;
   }
 }
@@ -190,7 +325,7 @@ function renderStats() {
     { label: "Total opportunities", value: state.applications.length, note: "Across your search", icon: "opportunities", tone: "indigo" },
     { label: "Saved jobs", value: countByStatus("Saved"), note: "Worth a closer look", icon: "saved", tone: "blue" },
     { label: "Applications sent", value: state.applications.filter((application) => application.status !== "Saved").length, note: "Taking the next step", icon: "applied", tone: "green" },
-    { label: "Companies contacted", value: new Set(contacted.map((application) => application.companyName)).size, note: "Conversations started", icon: "contacted", tone: "amber" },
+    { label: "Companies contacted", value: new Set(contacted.map((application) => application.companyId).filter(Boolean)).size, note: "Conversations started", icon: "contacted", tone: "amber" },
     { label: "Interviews", value: countByStatus("Interviewed"), note: "You've got this", icon: "interviews", tone: "blue" },
     { label: "Offers received", value: countByStatus("Offered"), note: "A milestone worth celebrating", icon: "offers", tone: "rose" }
   ];
@@ -210,7 +345,8 @@ function statusOptions(selectedStatus) {
 }
 
 function applicationCard(application, index) {
-  const companyInitial = application.companyName.trim().charAt(0).toUpperCase() || "?";
+  const companyName = getApplicationCompanyName(application);
+  const companyInitial = companyName.charAt(0).toUpperCase() || "?";
   const tone = companyColors[index % companyColors.length];
   return `
     <article class="application-card">
@@ -218,7 +354,7 @@ function applicationCard(application, index) {
         <span class="company-mark" data-color="${tone}" aria-hidden="true">${escapeHtml(companyInitial)}</span>
         <div class="application-title-wrap">
           <button class="application-open-button" type="button" data-open-application="${escapeAttribute(application.id)}"><span class="application-title" title="${escapeAttribute(application.title)}">${escapeHtml(application.title)}</span></button>
-          <p class="application-company">${escapeHtml(application.companyName)}</p>
+          <p class="application-company">${escapeHtml(companyName)}</p>
         </div>
       </div>
       <div class="application-meta">
@@ -249,7 +385,7 @@ function renderPipeline() {
     const matches = state.applications.filter((application) => {
       if (application.status !== status) return false;
       if (!search) return true;
-      return [application.title, application.companyName, application.location, application.workMode, application.status]
+      return [application.title, getApplicationCompanyName(application), application.location, application.workMode, application.status]
         .some((value) => String(value || "").toLocaleLowerCase().includes(search));
     });
     const collapsed = state.collapsedSections.has(status);
@@ -417,20 +553,26 @@ function showToast(message) {
 }
 
 function companyOptions() {
-  const companies = new Map();
-  state.applications.forEach((application) => {
-    const key = application.companyName.trim().toLocaleLowerCase();
-    if (key && !companies.has(key)) companies.set(key, { id: application.companyId, name: application.companyName });
-  });
-  return [...companies.values()].sort((first, second) => first.name.localeCompare(second.name));
+  return [...state.companies].sort((first, second) => first.name.localeCompare(second.name));
 }
 
-function resolveCompanyId(companyName, selectedId) {
-  const key = companyName.trim().toLocaleLowerCase();
-  const selected = companyOptions().find((company) => company.id === selectedId && company.name.toLocaleLowerCase() === key);
-  if (selected) return selected.id;
-  const existing = companyOptions().find((company) => company.name.toLocaleLowerCase() === key);
-  return existing ? existing.id : createId("company");
+function getApplicationCompanyName(application) {
+  const company = state.companies.find((item) => item.id === application.companyId);
+  return company ? company.name : "";
+}
+
+function findCompanyByName(name, companies = state.companies) {
+  const normalizedName = normalizeCompanyName(name);
+  return normalizedName ? companies.find((company) => company.normalizedName === normalizedName) || null : null;
+}
+
+function ensureCompanyForName(name, companies = state.companies) {
+  const cleanName = cleanCompanyName(name);
+  if (!cleanName) return { company: null, companies };
+  const existing = findCompanyByName(cleanName, companies);
+  if (existing) return { company: existing, companies };
+  const company = makeCompanyRecord(cleanName);
+  return { company, companies: [...companies, company] };
 }
 
 function replaceSelectOptions(select, defaultLabel, values, selectedValue) {
@@ -443,13 +585,20 @@ function replaceSelectOptions(select, defaultLabel, values, selectedValue) {
 function renderApplicationFilters() {
   const selected = {
     status: document.querySelector("#filter-status").value,
-    company: document.querySelector("#filter-company").value,
+    companyId: document.querySelector("#filter-company").value,
     jobType: document.querySelector("#filter-job-type").value,
     workMode: document.querySelector("#filter-work-mode").value,
     source: document.querySelector("#filter-source").value
   };
   replaceSelectOptions(document.querySelector("#filter-status"), "All statuses", statusOrder, selected.status);
-  replaceSelectOptions(document.querySelector("#filter-company"), "All companies", companyOptions().map((company) => company.name), selected.company);
+  const companySelect = document.querySelector("#filter-company");
+  const companyEntries = companyOptions().map((company) => ({ value: company.id, label: company.name }));
+  if (state.applications.some((application) => !application.companyId)) {
+    companyEntries.push({ value: "__unassigned__", label: "No company association" });
+  }
+  companySelect.innerHTML = '<option value="">All companies</option>' + companyEntries
+    .map((company) => `<option value="${escapeAttribute(company.value)}">${escapeHtml(company.label)}</option>`).join("");
+  companySelect.value = companyEntries.some((company) => company.value === selected.companyId) ? selected.companyId : "";
   replaceSelectOptions(document.querySelector("#filter-job-type"), "All job types", ["Internship", "Full-time", "Part-time", "Contract"], selected.jobType);
   replaceSelectOptions(document.querySelector("#filter-work-mode"), "All work modes", ["Remote", "Hybrid", "On-site"], selected.workMode);
   const sources = [...new Set(state.applications.map((application) => application.source).filter(Boolean))].sort((a, b) => a.localeCompare(b));
@@ -460,16 +609,16 @@ function getFilteredApplications() {
   const query = document.querySelector("#applications-search").value.trim().toLocaleLowerCase();
   const filters = {
     status: document.querySelector("#filter-status").value,
-    company: document.querySelector("#filter-company").value,
+    companyId: document.querySelector("#filter-company").value,
     jobType: document.querySelector("#filter-job-type").value,
     workMode: document.querySelector("#filter-work-mode").value,
     source: document.querySelector("#filter-source").value,
     sort: document.querySelector("#sort-applications").value
   };
   const filtered = state.applications.filter((application) => {
-    return (!query || `${application.title} ${application.companyName}`.toLocaleLowerCase().includes(query))
+    return (!query || `${application.title} ${getApplicationCompanyName(application)}`.toLocaleLowerCase().includes(query))
       && (!filters.status || application.status === filters.status)
-      && (!filters.company || application.companyName === filters.company)
+      && (!filters.companyId || (filters.companyId === "__unassigned__" ? !application.companyId : application.companyId === filters.companyId))
       && (!filters.jobType || application.jobType === filters.jobType)
       && (!filters.workMode || application.workMode === filters.workMode)
       && (!filters.source || application.source === filters.source);
@@ -477,14 +626,15 @@ function getFilteredApplications() {
   const sorters = {
     "date-desc": (first, second) => (second.dateApplied || second.dateDiscovered).localeCompare(first.dateApplied || first.dateDiscovered),
     "date-asc": (first, second) => (first.dateApplied || first.dateDiscovered).localeCompare(second.dateApplied || second.dateDiscovered),
-    "company-asc": (first, second) => first.companyName.localeCompare(second.companyName),
+    "company-asc": (first, second) => getApplicationCompanyName(first).localeCompare(getApplicationCompanyName(second)),
     "title-asc": (first, second) => first.title.localeCompare(second.title)
   };
   return filtered.sort(sorters[filters.sort] || sorters["date-desc"]);
 }
 
 function renderManagementCard(application, index) {
-  const initial = application.companyName.charAt(0).toUpperCase() || "?";
+  const companyName = getApplicationCompanyName(application) || "No company association";
+  const initial = companyName.charAt(0).toUpperCase() || "?";
   return `
     <article class="management-card">
       <div class="management-card-top">
@@ -492,7 +642,7 @@ function renderManagementCard(application, index) {
           <span class="company-mark" data-color="${companyColors[index % companyColors.length]}" aria-hidden="true">${escapeHtml(initial)}</span>
           <div class="application-title-wrap">
             <button class="application-open-button" type="button" data-open-application="${escapeAttribute(application.id)}"><span class="application-title">${escapeHtml(application.title)}</span></button>
-            <p class="application-company">${escapeHtml(application.companyName)}</p>
+            <p class="application-company">${escapeHtml(companyName)}</p>
           </div>
         </div>
         <span class="status-pill ${statusClass[application.status]}">${escapeHtml(application.status)}</span>
@@ -511,9 +661,10 @@ function renderManagementCard(application, index) {
 }
 
 function renderApplicationRow(application) {
+  const companyName = getApplicationCompanyName(application) || "No company association";
   return `
     <tr>
-      <td><button class="application-open-button" type="button" data-open-application="${escapeAttribute(application.id)}"><span class="application-title">${escapeHtml(application.title)}</span><span class="application-company">${escapeHtml(application.companyName)}</span></button></td>
+      <td><button class="application-open-button" type="button" data-open-application="${escapeAttribute(application.id)}"><span class="application-title">${escapeHtml(application.title)}</span><span class="application-company">${escapeHtml(companyName)}</span></button></td>
       <td>${escapeHtml(application.jobType)}</td>
       <td>${escapeHtml(application.workMode || "—")}</td>
       <td><select class="quick-status" data-status-application="${escapeAttribute(application.id)}" aria-label="Change status for ${escapeAttribute(application.title)}">${statusOptions(application.status)}</select></td>
@@ -568,6 +719,7 @@ function safeJobUrl(value) {
 
 function renderApplicationDetail(application) {
   const target = document.querySelector("#application-detail-view");
+  const companyName = getApplicationCompanyName(application) || "No company association";
   const skills = application.skills.length
     ? `<div class="skill-list">${application.skills.map((skill) => `<span class="skill-tag">${escapeHtml(skill)}</span>`).join("")}</div>`
     : '<p class="detail-unspecified">No required skills listed.</p>';
@@ -576,11 +728,13 @@ function renderApplicationDetail(application) {
     <button class="detail-back" type="button" data-back-to-applications>${iconMarkup.chevron}All applications</button>
     <div class="detail-titlebar">
       <div class="detail-identity">
-        <span class="detail-company-mark" aria-hidden="true">${escapeHtml(application.companyName.charAt(0).toUpperCase() || "?")}</span>
+        <span class="detail-company-mark" aria-hidden="true">${escapeHtml(companyName.charAt(0).toUpperCase() || "?")}</span>
         <div>
           <p class="eyebrow">${escapeHtml(application.jobType)} OPPORTUNITY</p>
           <h1>${escapeHtml(application.title)}</h1>
-          <p class="detail-company-name">${escapeHtml(application.companyName)}</p>
+          <p class="detail-company-name">${application.companyId
+            ? `<button class="inline-company-link" type="button" data-open-company="${escapeAttribute(application.companyId)}">${escapeHtml(companyName)}</button>`
+            : escapeHtml(companyName)}</p>
           <div class="detail-subline"><span>${escapeHtml(application.location || "Location not specified")}</span><span>${escapeHtml(application.workMode || "Work mode not specified")}</span><span>${escapeHtml(formatCompensation(application))}</span></div>
         </div>
       </div>
@@ -638,15 +792,20 @@ function renderApplicationsPage() {
 function refreshDataViews() {
   renderDashboard();
   if (state.route === "applications") renderApplicationsPage();
+  if (state.route === "companies") renderCompaniesPage();
 }
 
 function createApplication(application) {
-  const record = { ...application, id: application.id || createId("application") };
+  const { companyName, ...applicationFields } = application;
+  const resolved = ensureCompanyForName(companyName);
+  const record = { ...applicationFields, companyId: resolved.company ? resolved.company.id : null, id: application.id || createId("application") };
   if (state.applications.some((item) => item.id === record.id)) {
     showToast("That application ID is already in use.");
     return false;
   }
-  if (!persistApplicationRecords([...state.applications, record])) return false;
+  const applications = [...state.applications, record];
+  if (!persistDataRecords(resolved.companies, applications)) return false;
+  state.companies = resolved.companies;
   state.applications = [...state.applications, record];
   refreshDataViews();
   return true;
@@ -658,9 +817,21 @@ function updateApplication(id, changes) {
     showToast("This application could not be found.");
     return false;
   }
-  const updated = { ...existing, ...changes, id, updatedAt: new Date().toISOString() };
+  const { companyName, ...applicationChanges } = changes;
+  const desiredCompanyName = Object.prototype.hasOwnProperty.call(changes, "companyName")
+    ? companyName
+    : getApplicationCompanyName(existing);
+  const resolved = ensureCompanyForName(desiredCompanyName);
+  const updated = {
+    ...existing,
+    ...applicationChanges,
+    companyId: resolved.company ? resolved.company.id : null,
+    id,
+    updatedAt: new Date().toISOString()
+  };
   const records = state.applications.map((application) => application.id === id ? updated : application);
-  if (!persistApplicationRecords(records)) return false;
+  if (!persistDataRecords(resolved.companies, records)) return false;
+  state.companies = resolved.companies;
   state.applications = records;
   refreshDataViews();
   return true;
@@ -673,12 +844,348 @@ function deleteApplication(id) {
     return false;
   }
   const records = state.applications.filter((application) => application.id !== id);
-  if (!persistApplicationRecords(records)) return false;
+  if (!persistDataRecords(state.companies, records)) return false;
   state.applications = records;
   state.applicationMode = "list";
   state.activeApplicationId = null;
   refreshDataViews();
   return true;
+}
+
+function createCompany(companyFields) {
+  const name = cleanCompanyName(companyFields.name);
+  if (!name) return false;
+  if (findCompanyByName(name)) {
+    showToast("A company with that name already exists.");
+    return false;
+  }
+  const company = { ...makeCompanyRecord(name), ...companyFields, name, normalizedName: normalizeCompanyName(name) };
+  const companies = [...state.companies, company];
+  if (!persistDataRecords(companies, state.applications)) return false;
+  state.companies = companies;
+  refreshDataViews();
+  return true;
+}
+
+function updateCompany(id, fields) {
+  const existing = state.companies.find((company) => company.id === id);
+  if (!existing) {
+    showToast("This company could not be found.");
+    return false;
+  }
+  const name = cleanCompanyName(fields.name);
+  const duplicate = findCompanyByName(name, state.companies.filter((company) => company.id !== id));
+  if (duplicate) {
+    showToast("Another company already uses that name.");
+    return false;
+  }
+  const updated = { ...existing, ...fields, name, normalizedName: normalizeCompanyName(name), id, updatedAt: new Date().toISOString() };
+  const companies = state.companies.map((company) => company.id === id ? updated : company);
+  if (!persistDataRecords(companies, state.applications)) return false;
+  state.companies = companies;
+  refreshDataViews();
+  return true;
+}
+
+function deleteCompany(id) {
+  const company = state.companies.find((item) => item.id === id);
+  if (!company) {
+    showToast("This company could not be found.");
+    return false;
+  }
+  const companies = state.companies.filter((item) => item.id !== id);
+  const applications = state.applications.map((application) => application.companyId === id
+    ? { ...application, companyId: null, updatedAt: new Date().toISOString() }
+    : application);
+  if (!persistDataRecords(companies, applications)) return false;
+  state.companies = companies;
+  state.applications = applications;
+  state.companyMode = "list";
+  state.activeCompanyId = null;
+  refreshDataViews();
+  return true;
+}
+
+function companyApplications(companyId) {
+  return state.applications.filter((application) => application.companyId === companyId)
+    .sort((first, second) => (second.dateApplied || second.dateDiscovered).localeCompare(first.dateApplied || first.dateDiscovered));
+}
+
+function companyImageMarkup(company, className = "company-directory-mark") {
+  const imageUrl = safeJobUrl(company.logo);
+  return imageUrl
+    ? `<span class="${className}"><img src="${escapeAttribute(imageUrl)}" alt=""></span>`
+    : `<span class="${className}" aria-hidden="true">${escapeHtml(company.name.charAt(0).toUpperCase() || "?")}</span>`;
+}
+
+function companyDirectoryCard(company) {
+  const applications = companyApplications(company.id);
+  const latestDate = applications[0] && (applications[0].dateApplied || applications[0].dateDiscovered);
+  const website = safeJobUrl(company.website);
+  return `
+    <article class="company-directory-card">
+      <button class="company-card-main" type="button" data-open-company="${escapeAttribute(company.id)}">
+        ${companyImageMarkup(company)}
+        <span class="company-card-identity"><strong>${escapeHtml(company.name)}</strong><small>${escapeHtml(company.industry || "Industry not specified")}</small></span>
+        <span class="company-card-arrow" aria-hidden="true">→</span>
+      </button>
+      <div class="company-card-facts">
+        <span>${iconMarkup.pin}${escapeHtml(company.location || "Location not specified")}</span>
+        <span>${iconMarkup.briefcase}${website ? `<a href="${escapeAttribute(website)}" target="_blank" rel="noopener noreferrer" data-stop-company-open>${escapeHtml(website.replace(/^https?:\/\//, "").replace(/\/$/, ""))}</a>` : "Website not specified"}</span>
+      </div>
+      <div class="company-card-footer">
+        <span><strong>${applications.length}</strong> ${applications.length === 1 ? "application" : "applications"}</span>
+        <span>Latest ${latestDate ? escapeHtml(formatDate(latestDate)) : "—"}</span>
+      </div>
+    </article>`;
+}
+
+function renderCompaniesDirectory() {
+  const query = document.querySelector("#company-search").value.trim().toLocaleLowerCase();
+  const companies = companyOptions().filter((company) => {
+    const searchable = `${company.name} ${company.industry} ${company.location}`.toLocaleLowerCase();
+    return !query || searchable.includes(query);
+  });
+  document.querySelector("#company-results-count").textContent = `${companies.length} ${companies.length === 1 ? "company" : "companies"}`;
+  const target = document.querySelector("#company-results");
+  target.innerHTML = companies.length
+    ? `<div class="company-grid">${companies.map(companyDirectoryCard).join("")}</div>`
+    : `<div class="applications-empty"><strong>${state.companies.length ? "No matching companies" : "Your directory is ready"}</strong><span>${state.companies.length ? "Try another company name, industry, or location." : "Add a company or save an opportunity to build your company directory."}</span>${state.companies.length ? "" : '<button class="primary-button empty-company-add" type="button">Add company</button>'}</div>`;
+}
+
+function companyFact(label, value, url) {
+  const content = url
+    ? `<a href="${escapeAttribute(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(value)}</a>`
+    : displayValue(value);
+  return `<div class="company-profile-fact"><dt>${escapeHtml(label)}</dt><dd>${content}</dd></div>`;
+}
+
+function renderCompanyProfile(company) {
+  const target = document.querySelector("#company-profile-view");
+  const applications = companyApplications(company.id);
+  const website = safeJobUrl(company.website);
+  const careers = safeJobUrl(company.careersUrl);
+  const linkedIn = safeJobUrl(company.linkedInUrl);
+  const email = company.contactEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(company.contactEmail)
+    ? `mailto:${company.contactEmail}`
+    : "";
+  const applicationsMarkup = applications.length
+    ? `<div class="company-linked-applications">${applications.map((application) => `
+        <article class="company-linked-application">
+          <div class="company-linked-identity">
+            <button type="button" class="application-open-button" data-open-application="${escapeAttribute(application.id)}"><span class="application-title">${escapeHtml(application.title)}</span></button>
+            <span class="application-company">${escapeHtml(application.jobType)} · ${escapeHtml(application.location || "Location not specified")}</span>
+          </div>
+          <span class="status-pill ${statusClass[application.status]}">${escapeHtml(application.status)}</span>
+          <time>${escapeHtml(formatDate(application.dateApplied || application.dateDiscovered))}</time>
+        </article>`).join("")}</div>`
+    : '<div class="empty-state">No applications are associated with this company yet.</div>';
+  target.innerHTML = `
+    <button class="detail-back" type="button" data-back-to-companies>${iconMarkup.chevron}All companies</button>
+    <div class="company-profile-heading">
+      <div class="company-profile-identity">
+        ${companyImageMarkup(company, "company-profile-mark")}
+        <div>
+          <p class="eyebrow">COMPANY PROFILE</p>
+          <h1>${escapeHtml(company.name)}</h1>
+          <p class="company-profile-industry">${escapeHtml(company.industry || "Industry not specified")}${company.location ? ` · ${escapeHtml(company.location)}` : ""}</p>
+        </div>
+      </div>
+      <div class="company-profile-actions">
+        <button class="secondary-button" type="button" data-edit-company="${escapeAttribute(company.id)}">Edit company</button>
+        <button class="secondary-button danger-button" type="button" data-delete-company="${escapeAttribute(company.id)}">Delete company</button>
+      </div>
+    </div>
+    <div class="company-profile-grid">
+      <article class="detail-card company-about-card">
+        <h2>About</h2>
+        <p>${displayValue(company.description)}</p>
+        <dl class="company-profile-facts">
+          ${companyFact("Industry", company.industry)}
+          ${companyFact("Location", company.location)}
+          ${companyFact("Company size", company.size)}
+          ${companyFact("Official website", company.website, website)}
+          ${companyFact("Careers page", company.careersUrl, careers)}
+        </dl>
+      </article>
+      <div class="company-profile-side">
+        <article class="detail-card">
+          <h2>Contact</h2>
+          <dl class="company-profile-facts">
+            ${companyFact("Contact person", company.contactPerson)}
+            ${companyFact("Designation", company.contactDesignation)}
+            ${companyFact("Contact email", company.contactEmail, email)}
+            ${companyFact("LinkedIn", company.linkedInUrl, linkedIn)}
+          </dl>
+        </article>
+        <article class="detail-card"><h2>Additional notes</h2><p>${displayValue(company.notes)}</p></article>
+      </div>
+    </div>
+    <article class="detail-card company-applications-card">
+      <div class="company-applications-heading"><div><p class="eyebrow">YOUR PIPELINE</p><h2>Associated applications</h2></div><span class="pipeline-total">${applications.length} ${applications.length === 1 ? "application" : "applications"}</span></div>
+      ${applicationsMarkup}
+    </article>`;
+}
+
+function renderCompaniesPage() {
+  const company = state.companies.find((item) => item.id === state.activeCompanyId);
+  if (state.companyMode === "detail" && company) {
+    document.querySelector("#company-directory-view").hidden = true;
+    document.querySelector("#company-profile-view").hidden = false;
+    renderCompanyProfile(company);
+  } else {
+    state.companyMode = "list";
+    state.activeCompanyId = null;
+    document.querySelector("#company-directory-view").hidden = false;
+    document.querySelector("#company-profile-view").hidden = true;
+    renderCompaniesDirectory();
+  }
+}
+
+function openCompanyProfile(id) {
+  if (!state.companies.some((company) => company.id === id)) {
+    showToast("This company could not be found.");
+    return;
+  }
+  routeTo("companies", true);
+  state.companyMode = "detail";
+  state.activeCompanyId = id;
+  renderCompaniesPage();
+}
+
+function readCompanyForm() {
+  return {
+    name: cleanCompanyName(document.querySelector("#company-form-name").value),
+    logo: document.querySelector("#company-form-logo").value.trim(),
+    industry: document.querySelector("#company-form-industry").value.trim(),
+    description: document.querySelector("#company-form-description").value.trim(),
+    website: document.querySelector("#company-form-website").value.trim(),
+    careersUrl: document.querySelector("#company-form-careers-url").value.trim(),
+    contactEmail: document.querySelector("#company-form-email").value.trim(),
+    contactPerson: document.querySelector("#company-form-contact").value.trim(),
+    contactDesignation: document.querySelector("#company-form-designation").value.trim(),
+    linkedInUrl: document.querySelector("#company-form-linkedin").value.trim(),
+    location: document.querySelector("#company-form-location").value.trim(),
+    size: document.querySelector("#company-form-size").value.trim(),
+    notes: document.querySelector("#company-form-notes").value.trim()
+  };
+}
+
+function openAddCompanyDialog() {
+  if (state.route !== "companies") routeTo("companies");
+  state.editingCompanyId = null;
+  const form = document.querySelector("#company-form");
+  form.reset();
+  document.querySelector("#company-form-id").value = "";
+  document.querySelector("#company-dialog-title").textContent = "Add a company";
+  document.querySelector("#company-dialog").showModal();
+}
+
+function openEditCompanyDialog(id) {
+  const company = state.companies.find((item) => item.id === id);
+  if (!company) {
+    showToast("This company could not be found.");
+    return;
+  }
+  state.editingCompanyId = id;
+  document.querySelector("#company-dialog-title").textContent = "Edit company";
+  document.querySelector("#company-form-id").value = id;
+  document.querySelector("#company-form-name").value = company.name;
+  document.querySelector("#company-form-logo").value = company.logo;
+  document.querySelector("#company-form-industry").value = company.industry;
+  document.querySelector("#company-form-description").value = company.description;
+  document.querySelector("#company-form-website").value = company.website;
+  document.querySelector("#company-form-careers-url").value = company.careersUrl;
+  document.querySelector("#company-form-email").value = company.contactEmail;
+  document.querySelector("#company-form-contact").value = company.contactPerson;
+  document.querySelector("#company-form-designation").value = company.contactDesignation;
+  document.querySelector("#company-form-linkedin").value = company.linkedInUrl;
+  document.querySelector("#company-form-location").value = company.location;
+  document.querySelector("#company-form-size").value = company.size;
+  document.querySelector("#company-form-notes").value = company.notes;
+  document.querySelector("#company-dialog").showModal();
+}
+
+function requestCompanyDeletion(id) {
+  const company = state.companies.find((item) => item.id === id);
+  if (!company) {
+    showToast("This company could not be found.");
+    return;
+  }
+  state.pendingCompanyDeleteId = id;
+  const count = companyApplications(id).length;
+  document.querySelector("#company-delete-title").textContent = `Delete ${company.name}?`;
+  document.querySelector("#company-delete-copy").textContent = count
+    ? `This removes the company profile but keeps its ${count} associated ${count === 1 ? "application" : "applications"}. They will remain in your tracker without a company association. This cannot be undone.`
+    : "This company has no associated applications. Its profile will be permanently removed.";
+  document.querySelector("#confirm-company-delete").textContent = count
+    ? `Delete company & keep ${count} ${count === 1 ? "application" : "applications"}`
+    : "Delete company";
+  document.querySelector("#company-delete-dialog").showModal();
+}
+
+function handleCompanyViewClick(event) {
+  const target = event.target.closest("button");
+  if (!target) return;
+  if (target.closest("[data-stop-company-open]")) return;
+  if (target.matches("[data-open-company]")) openCompanyProfile(target.dataset.openCompany);
+  else if (target.matches("[data-edit-company]")) openEditCompanyDialog(target.dataset.editCompany);
+  else if (target.matches("[data-delete-company]")) requestCompanyDeletion(target.dataset.deleteCompany);
+  else if (target.matches("[data-open-application]")) openApplicationDetail(target.dataset.openApplication);
+  else if (target.matches("[data-back-to-companies]")) {
+    state.companyMode = "list";
+    state.activeCompanyId = null;
+    renderCompaniesPage();
+  } else if (target.matches(".empty-company-add")) openAddCompanyDialog();
+}
+
+function initCompanyManagement() {
+  const view = document.querySelector("#companies-view");
+  view.addEventListener("input", (event) => {
+    if (event.target.id === "company-search") renderCompaniesDirectory();
+  });
+  view.addEventListener("click", handleCompanyViewClick);
+  document.querySelector("#add-company-button").addEventListener("click", openAddCompanyDialog);
+  const companyDialog = document.querySelector("#company-dialog");
+  const closeCompanyDialog = () => {
+    companyDialog.close();
+    state.editingCompanyId = null;
+  };
+  document.querySelector(".company-dialog-close").addEventListener("click", closeCompanyDialog);
+  document.querySelector("#cancel-company-form").addEventListener("click", closeCompanyDialog);
+  companyDialog.addEventListener("click", (event) => {
+    if (event.target === companyDialog) closeCompanyDialog();
+  });
+  document.querySelector("#company-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!event.currentTarget.reportValidity()) return;
+    const fields = readCompanyForm();
+    const editing = Boolean(state.editingCompanyId);
+    const saved = editing ? updateCompany(state.editingCompanyId, fields) : createCompany(fields);
+    if (!saved) return;
+    closeCompanyDialog();
+    showToast(editing ? "Company profile updated." : "Company added.");
+  });
+  const deleteDialog = document.querySelector("#company-delete-dialog");
+  document.querySelector("#cancel-company-delete").addEventListener("click", () => {
+    state.pendingCompanyDeleteId = null;
+    deleteDialog.close();
+  });
+  document.querySelector("#confirm-company-delete").addEventListener("click", () => {
+    const id = state.pendingCompanyDeleteId;
+    if (!id) return;
+    if (deleteCompany(id)) {
+      state.pendingCompanyDeleteId = null;
+      deleteDialog.close();
+      showToast("Company deleted. Associated applications were kept.");
+    }
+  });
+  deleteDialog.addEventListener("click", (event) => {
+    if (event.target === deleteDialog) {
+      state.pendingCompanyDeleteId = null;
+      deleteDialog.close();
+    }
+  });
 }
 
 function updateApplicationStatus(id, status) {
@@ -715,9 +1222,8 @@ function loadResumeOptions() {
 function populateApplicationFormOptions(current) {
   const statusSelect = document.querySelector("#form-status");
   statusSelect.innerHTML = statusOrder.map((status) => `<option value="${status}">${status}</option>`).join("");
-  const companySelect = document.querySelector("#existing-company");
-  companySelect.innerHTML = '<option value="">Choose a company (optional)</option>' + companyOptions()
-    .map((company) => `<option value="${escapeAttribute(company.id)}" data-company-name="${escapeAttribute(company.name)}">${escapeHtml(company.name)}</option>`).join("");
+  document.querySelector("#company-suggestions").innerHTML = companyOptions()
+    .map((company) => `<option value="${escapeAttribute(company.name)}"></option>`).join("");
   const sourceSelect = document.querySelector("#form-source");
   [...sourceSelect.options].filter((option) => option.dataset.custom === "true").forEach((option) => option.remove());
   if (current && current.source && ![...sourceSelect.options].some((option) => option.value === current.source)) {
@@ -737,7 +1243,6 @@ function populateApplicationFormOptions(current) {
   }
   statusSelect.value = current ? current.status : "Saved";
   if (current) {
-    companySelect.value = current.companyId;
     resumeSelect.value = current.resumeId;
     sourceSelect.value = current.source;
   }
@@ -755,12 +1260,18 @@ function syncApplicationDateRequirement() {
   document.querySelector(".application-date-required").hidden = !required;
 }
 
+function syncCompanyNameRequirement(required) {
+  document.querySelector("#form-company").required = required;
+  document.querySelector(".company-name-required").hidden = !required;
+}
+
 function openAddApplicationDialog() {
   if (state.route !== "applications") routeTo("applications");
   state.editingApplicationId = null;
   state.formIntent = "saved";
   const form = document.querySelector("#application-form");
   form.reset();
+  syncCompanyNameRequirement(true);
   document.querySelector("#application-dialog-title").textContent = "Add an application";
   document.querySelector("#application-choice-step").hidden = false;
   form.hidden = true;
@@ -800,6 +1311,7 @@ function openEditApplicationDialog(id) {
   form.hidden = false;
   document.querySelector("#form-status").disabled = false;
   populateApplicationFormOptions(application);
+  syncCompanyNameRequirement(Boolean(application.companyId));
   setFormValue("application-id", application.id);
   setFormValue("application-intent", "edit");
   setFormValue("form-title", application.title);
@@ -814,7 +1326,7 @@ function openEditApplicationDialog(id) {
   setFormValue("form-frequency", application.paymentFrequency === "Not specified" ? "" : application.paymentFrequency);
   setFormValue("form-duration", application.duration);
   setFormValue("form-hours", application.hoursPerDay);
-  setFormValue("form-company", application.companyName);
+  setFormValue("form-company", getApplicationCompanyName(application));
   setFormValue("form-status", application.status);
   setFormValue("form-source", application.source);
   setFormValue("form-date-discovered", application.dateDiscovered);
@@ -831,7 +1343,6 @@ function readApplicationForm() {
   const form = document.querySelector("#application-form");
   const values = Object.fromEntries(new FormData(form).entries());
   const companyName = String(values.companyName || "").trim();
-  const selectedCompany = document.querySelector("#existing-company");
   const selectedResume = document.querySelector("#form-resume");
   const status = state.formIntent === "saved" ? "Saved" : values.status;
   const existing = state.editingApplicationId
@@ -842,7 +1353,6 @@ function readApplicationForm() {
   return {
     ...(existing || {}),
     id: state.editingApplicationId || createId("application"),
-    companyId: resolveCompanyId(companyName, selectedCompany.value),
     companyName,
     title: String(values.title || "").trim(),
     jobType: values.jobType,
@@ -887,10 +1397,11 @@ function handleApplicationViewClick(event) {
   const target = event.target.closest("button");
   if (!target) return;
   if (target.matches("[data-open-application]")) openApplicationDetail(target.dataset.openApplication);
+  else if (target.matches("[data-open-company]") && target.dataset.openCompany) openCompanyProfile(target.dataset.openCompany);
   else if (target.matches("[data-edit-application]")) openEditApplicationDialog(target.dataset.editApplication);
   else if (target.matches("[data-delete-application]")) {
     const application = state.applications.find((item) => item.id === target.dataset.deleteApplication);
-    if (application && window.confirm(`Delete "${application.title}" at ${application.companyName}? This cannot be undone.`)) {
+    if (application && window.confirm(`Delete "${application.title}" at ${getApplicationCompanyName(application) || "No company"}? This cannot be undone.`)) {
       if (deleteApplication(application.id)) showToast("Application deleted.");
     }
   } else if (target.matches("[data-back-to-applications]")) {
@@ -917,10 +1428,6 @@ function initApplicationManagement() {
   document.querySelector("#add-application-button").addEventListener("click", openAddApplicationDialog);
   document.querySelectorAll("[data-application-intent]").forEach((button) => {
     button.addEventListener("click", () => selectApplicationIntent(button.dataset.applicationIntent));
-  });
-  document.querySelector("#existing-company").addEventListener("change", (event) => {
-    const option = event.target.selectedOptions[0];
-    if (option && option.dataset.companyName) setFormValue("form-company", option.dataset.companyName);
   });
   document.querySelector("#form-status").addEventListener("change", syncApplicationDateRequirement);
   document.querySelector("#form-source").addEventListener("change", (event) => {
@@ -962,7 +1469,6 @@ function initApplicationManagement() {
 }
 
 const pageDescriptions = {
-  companies: ["Companies", "Keep the teams and people behind your opportunities in one place. Company management is planned for a later phase.", "companies"],
   resumes: ["Resumes", "Your tailored resumes will have a dedicated home here. Resume management is planned for a later phase.", "resumes"],
   settings: ["Settings", "Theme preferences and workspace options will live here as ApplyTrack grows.", "settings"]
 };
@@ -971,13 +1477,19 @@ function routeTo(route, preserveApplicationMode) {
   state.route = route;
   const dashboard = route === "dashboard";
   const applications = route === "applications";
+  const companies = route === "companies";
   if (applications && !preserveApplicationMode) {
     state.applicationMode = "list";
     state.activeApplicationId = null;
   }
+  if (companies && !preserveApplicationMode) {
+    state.companyMode = "list";
+    state.activeCompanyId = null;
+  }
   document.querySelector("#dashboard-view").classList.toggle("is-visible", dashboard);
   document.querySelector("#applications-view").classList.toggle("is-visible", applications);
-  document.querySelector("#placeholder-view").classList.toggle("is-visible", !dashboard && !applications);
+  document.querySelector("#companies-view").classList.toggle("is-visible", companies);
+  document.querySelector("#placeholder-view").classList.toggle("is-visible", !dashboard && !applications && !companies);
   document.querySelectorAll(".nav-link[data-route]").forEach((link) => {
     const active = link.dataset.route === route;
     link.classList.toggle("is-active", active);
@@ -986,8 +1498,10 @@ function routeTo(route, preserveApplicationMode) {
   });
   const [title, copy, icon] = applications
     ? ["Applications", "A focused home for every opportunity you're pursuing.", "opportunities"]
-    : pageDescriptions[route] || pageDescriptions.companies;
-  if (!dashboard && !applications) {
+    : companies
+      ? ["Companies", "Your company directory and profiles.", "companies"]
+      : pageDescriptions[route] || pageDescriptions.resumes;
+  if (!dashboard && !applications && !companies) {
     document.querySelector("#placeholder-title").textContent = title;
     document.querySelector("#placeholder-copy").textContent = copy;
     document.querySelector("#placeholder-mark").innerHTML = iconMarkup[icon] || iconMarkup.opportunities;
@@ -998,6 +1512,7 @@ function routeTo(route, preserveApplicationMode) {
   document.querySelector("#sidebar-backdrop").classList.remove("is-visible");
   if (location.hash !== `#${route}`) history.replaceState(null, "", `#${route}`);
   if (applications) renderApplicationsPage();
+  if (companies) renderCompaniesPage();
 }
 
 function setTheme(theme) {
@@ -1064,10 +1579,10 @@ function initNavigation() {
   });
   document.querySelector("#back-to-dashboard").addEventListener("click", () => routeTo("dashboard"));
   const initialRoute = location.hash.slice(1);
-  routeTo(["dashboard", "applications", ...Object.keys(pageDescriptions)].includes(initialRoute) ? initialRoute : "dashboard");
+  routeTo(["dashboard", "applications", "companies", ...Object.keys(pageDescriptions)].includes(initialRoute) ? initialRoute : "dashboard");
   window.addEventListener("hashchange", () => {
     const route = location.hash.slice(1);
-    if (["dashboard", "applications", ...Object.keys(pageDescriptions)].includes(route)) routeTo(route);
+    if (["dashboard", "applications", "companies", ...Object.keys(pageDescriptions)].includes(route)) routeTo(route);
   });
 }
 
@@ -1101,6 +1616,7 @@ function init() {
   initTheme();
   initSidebar();
   initApplicationManagement();
+  initCompanyManagement();
   initNavigation();
   initSearch();
   initDateLabels();

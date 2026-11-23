@@ -380,6 +380,65 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 .applications-empty { display: grid; min-height: 210px; padding: 28px; place-content: center; justify-items: center; color: var(--text-soft); text-align: center; }
 .applications-empty strong { margin-bottom: 7px; color: var(--text); font-family: Manrope, sans-serif; font-size: 15px; }
 .applications-empty span { max-width: 320px; color: var(--text-faint); font-size: 10px; line-height: 1.6; }
+.company-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow-card); }
+.company-results-count { color: var(--text-faint); font-size: 10px; white-space: nowrap; }
+.company-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 15px; }
+.company-directory-card { min-width: 0; padding: 15px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; box-shadow: var(--shadow-card); transition: border-color .16s ease, transform .16s ease; }
+.company-directory-card:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+.company-card-main { display: flex; align-items: center; gap: 11px; width: 100%; padding: 0; color: var(--text); background: transparent; border: 0; cursor: pointer; text-align: left; }
+.company-directory-mark { display: grid; width: 39px; height: 39px; flex: 0 0 auto; overflow: hidden; place-items: center; color: var(--accent); background: var(--accent-soft); border-radius: 10px; font-family: Manrope, sans-serif; font-size: 15px; font-weight: 700; }
+.company-directory-mark img, .company-profile-mark img { width: 100%; height: 100%; object-fit: cover; }
+.company-card-identity { display: grid; min-width: 0; gap: 4px; }
+.company-card-identity strong { overflow: hidden; font-family: Manrope, sans-serif; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.company-card-identity small { overflow: hidden; color: var(--text-faint); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.company-card-arrow { margin-left: auto; color: var(--text-faint); font-size: 16px; transition: color .16s ease, transform .16s ease; }
+.company-card-main:hover .company-card-arrow { color: var(--accent); transform: translateX(2px); }
+.company-card-facts { display: grid; gap: 8px; padding: 12px 0 11px; margin-top: 13px; border-top: 1px solid var(--line); }
+.company-card-facts > span { display: flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; color: var(--text-soft); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.company-card-facts svg { width: 12px; height: 12px; flex: 0 0 auto; color: var(--text-faint); }
+.company-card-facts a { overflow: hidden; text-overflow: ellipsis; }
+.company-card-facts a:hover, .company-profile-fact a { color: var(--accent); }
+.company-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text-faint); font-size: 8px; }
+.company-card-footer strong { color: var(--text-soft); font-size: 9px; font-weight: 600; }
+.empty-company-add { margin-top: 14px; }
+.company-profile-view { min-width: 0; }
+.company-profile-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 21px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow-card); }
+.company-profile-identity { display: flex; align-items: center; gap: 15px; min-width: 0; }
+.company-profile-mark { display: grid; width: 56px; height: 56px; flex: 0 0 auto; overflow: hidden; place-items: center; color: var(--accent); background: var(--accent-soft); border-radius: 13px; font-family: Manrope, sans-serif; font-size: 20px; font-weight: 700; }
+.company-profile-identity h1 { margin: 0; font-family: Manrope, sans-serif; font-size: 22px; letter-spacing: -.7px; }
+.company-profile-industry { margin: 5px 0 0; color: var(--text-soft); font-size: 10px; }
+.company-profile-actions { display: flex; flex: 0 0 auto; gap: 8px; }
+.company-profile-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(240px, .9fr); gap: 13px; margin-top: 13px; }
+.company-profile-grid .detail-card { min-height: 100%; }
+.company-profile-side { display: grid; align-content: start; gap: 13px; }
+.company-profile-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 13px; margin: 20px 0 0; }
+.company-profile-fact { min-width: 0; }
+.company-profile-fact dt { margin-bottom: 5px; color: var(--text-faint); font-size: 9px; }
+.company-profile-fact dd { margin: 0; color: var(--text); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.company-profile-fact a { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent); text-underline-offset: 2px; }
+.company-applications-card { margin-top: 13px; }
+.company-applications-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.company-applications-heading .eyebrow { margin-bottom: 5px; }
+.company-applications-heading h2 { margin: 0; }
+.company-linked-applications { display: grid; }
+.company-linked-application { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); }
+.company-linked-identity { display: grid; min-width: 0; gap: 4px; }
+.company-linked-identity .application-open-button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.company-linked-identity .application-title { font-size: 10px; }
+.company-linked-identity .application-company { margin: 0; font-size: 9px; }
+.company-linked-application time { color: var(--text-faint); font-size: 9px; white-space: nowrap; }
+.company-form { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+.company-form-scroll { flex: 1; }
+.company-delete-dialog { width: min(440px, calc(100vw - 32px)); max-width: none; padding: 0; color: var(--text); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 24px 80px rgba(13, 16, 25, .25); }
+.company-delete-dialog::backdrop { background: rgba(15, 17, 24, .52); backdrop-filter: blur(3px); }
+.company-delete-content { display: grid; justify-items: center; padding: 25px; text-align: center; }
+.delete-warning-mark { display: grid; width: 38px; height: 38px; margin-bottom: 15px; place-items: center; color: var(--rose); background: var(--rose-soft); border-radius: 50%; font-family: Manrope, sans-serif; font-size: 17px; font-weight: 700; }
+.company-delete-content .eyebrow { margin-bottom: 6px; }
+.company-delete-content h2 { margin: 0; font-family: Manrope, sans-serif; font-size: 17px; }
+.company-delete-content > p:not(.eyebrow) { margin: 10px 0 20px; color: var(--text-soft); font-size: 10px; line-height: 1.6; }
+.company-delete-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.danger-solid-button { background: #b94f58; border-color: #b94f58; }
+.danger-solid-button:hover { background: #a9424b; border-color: #a9424b; }
 .application-detail-view { min-width: 0; }
 .detail-back { display: inline-flex; align-items: center; gap: 7px; padding: 6px 0; margin-bottom: 18px; color: var(--text-soft); background: none; border: 0; cursor: pointer; font-size: 10px; }
 .detail-back:hover { color: var(--accent); }
@@ -389,6 +448,8 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 .detail-company-mark { display: grid; width: 46px; height: 46px; flex: 0 0 auto; place-items: center; color: var(--accent); background: var(--accent-soft); border-radius: 12px; font-family: Manrope, sans-serif; font-size: 17px; font-weight: 700; }
 .detail-identity h1 { margin: 0; font-family: Manrope, sans-serif; font-size: 22px; letter-spacing: -.7px; }
 .detail-company-name { margin: 5px 0 0; color: var(--text-soft); font-size: 12px; }
+.inline-company-link { padding: 0; color: var(--accent); background: transparent; border: 0; cursor: pointer; font: inherit; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 35%, transparent); text-underline-offset: 2px; }
+.inline-company-link:hover { text-decoration-color: currentColor; }
 .detail-subline { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 12px; color: var(--text-faint); font-size: 10px; }
 .detail-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; }
 .danger-button { color: var(--rose); background: var(--surface); border: 1px solid color-mix(in srgb, var(--rose) 35%, var(--line)); }
@@ -453,6 +514,7 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 @media (max-width: 1050px) {
   .filter-controls { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .application-results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .company-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
   .applications-heading { align-items: flex-start; }
@@ -463,6 +525,11 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   .detail-titlebar { flex-direction: column; padding: 16px; }
   .detail-actions { width: 100%; flex-wrap: wrap; }
   .detail-layout { grid-template-columns: 1fr; }
+  .company-profile-heading { align-items: flex-start; flex-direction: column; padding: 16px; }
+  .company-profile-actions { width: 100%; flex-wrap: wrap; }
+  .company-profile-grid { grid-template-columns: 1fr; }
+  .company-linked-application { grid-template-columns: minmax(0, 1fr) auto; gap: 9px; }
+  .company-linked-application time { grid-column: 1 / -1; }
 }
 @media (max-width: 480px) {
   .applications-heading { gap: 10px; }
@@ -483,4 +550,13 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
   .dialog-footer { padding-right: 15px; padding-left: 15px; }
   .choice-card { grid-template-columns: 32px minmax(0, 1fr) 12px; gap: 8px; padding: 11px; }
   .choice-icon { width: 32px; height: 32px; }
+  .company-toolbar { align-items: flex-start; flex-direction: column; gap: 9px; padding: 11px; }
+  .company-grid { grid-template-columns: 1fr; gap: 9px; }
+  .company-profile-identity { align-items: flex-start; gap: 11px; }
+  .company-profile-mark { width: 46px; height: 46px; }
+  .company-profile-identity h1 { font-size: 19px; }
+  .company-profile-facts { grid-template-columns: 1fr 1fr; gap: 13px 10px; }
+  .company-profile-actions .secondary-button { min-height: 34px; padding: 0 9px; font-size: 10px; }
+  .company-applications-heading { align-items: flex-start; flex-direction: column; }
+  .company-delete-content { padding: 20px 16px; }
 }

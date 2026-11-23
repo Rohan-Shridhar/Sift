@@ -209,6 +209,31 @@
             </div>
             <div class="application-detail-view" id="application-detail-view" hidden></div>
           </section>
+
+          <section class="view" id="companies-view" data-view="companies">
+            <div class="company-directory-view" id="company-directory-view">
+              <div class="page-heading applications-heading">
+                <div>
+                  <p class="eyebrow">YOUR NETWORK</p>
+                  <h1>Companies<span class="heading-period">.</span></h1>
+                  <p class="page-subtitle">A home for the organizations behind your opportunities.</p>
+                </div>
+                <button class="primary-button" id="add-company-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                  Add company
+                </button>
+              </div>
+              <div class="company-toolbar">
+                <label class="application-search">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.2 4.2"/></svg>
+                  <input id="company-search" type="search" placeholder="Search companies" aria-label="Search companies">
+                </label>
+                <span class="company-results-count" id="company-results-count" aria-live="polite"></span>
+              </div>
+              <div class="company-results" id="company-results"></div>
+            </div>
+            <div class="company-profile-view" id="company-profile-view" hidden></div>
+          </section>
         </div>
       </main>
     </div>
@@ -283,10 +308,9 @@
             </section>
 
             <section class="form-section">
-              <div class="form-section-heading"><span>03</span><div><h3>Company</h3><p>Existing companies can be selected; new ones are ready to link in a later phase.</p></div></div>
+              <div class="form-section-heading"><span>03</span><div><h3>Company</h3><p>Choose an existing company or add a new one to your directory.</p></div></div>
               <div class="form-grid">
-                <label class="form-field"><span>Select an existing company</span><select id="existing-company"><option value="">Choose a company (optional)</option></select></label>
-                <label class="form-field"><span>Company name <i>*</i></span><input name="companyName" id="form-company" required maxlength="120" placeholder="e.g. Acme Studio"></label>
+                <label class="form-field form-field-wide"><span>Company name <i class="company-name-required">*</i></span><input name="companyName" id="form-company" list="company-suggestions" required maxlength="120" placeholder="Choose an existing company or enter a new name"><datalist id="company-suggestions"></datalist><small class="field-hint">Existing companies will be suggested as you type. New names are added to your directory automatically.</small></label>
               </div>
             </section>
 
@@ -312,6 +336,65 @@
             <button class="primary-button" id="save-application-button" type="submit">Save application</button>
           </div>
         </form>
+      </div>
+    </dialog>
+
+    <dialog class="application-dialog company-dialog" id="company-dialog" aria-labelledby="company-dialog-title">
+      <div class="dialog-shell">
+        <header class="dialog-header">
+          <div>
+            <p class="eyebrow">YOUR NETWORK</p>
+            <h2 id="company-dialog-title">Add a company</h2>
+          </div>
+          <button class="icon-button company-dialog-close" type="button" aria-label="Close dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+          </button>
+        </header>
+        <form id="company-form" class="company-form">
+          <input type="hidden" id="company-form-id">
+          <div class="form-scroll-area company-form-scroll">
+            <section class="form-section">
+              <div class="form-section-heading"><span>01</span><div><h3>Company profile</h3><p>Keep these details independent of individual applications.</p></div></div>
+              <div class="form-grid">
+                <label class="form-field form-field-wide"><span>Company name <i>*</i></span><input id="company-form-name" required maxlength="120" placeholder="e.g. Northstar Labs"></label>
+                <label class="form-field"><span>Industry</span><input id="company-form-industry" placeholder="e.g. Software"></label>
+                <label class="form-field"><span>Location</span><input id="company-form-location" placeholder="City, country or remote"></label>
+                <label class="form-field form-field-wide"><span>Company description / what they do</span><textarea id="company-form-description" rows="3" placeholder="A short overview of the company"></textarea></label>
+                <label class="form-field"><span>Official website</span><input id="company-form-website" type="url" placeholder="https://"></label>
+                <label class="form-field"><span>Careers page URL</span><input id="company-form-careers-url" type="url" placeholder="https://"></label>
+                <label class="form-field"><span>Logo or image URL <small>(optional)</small></span><input id="company-form-logo" type="url" placeholder="https://"></label>
+                <label class="form-field"><span>Company size</span><input id="company-form-size" placeholder="e.g. 51–200 employees"></label>
+              </div>
+            </section>
+            <section class="form-section">
+              <div class="form-section-heading"><span>02</span><div><h3>People & notes</h3><p>Capture a useful contact and anything to remember.</p></div></div>
+              <div class="form-grid">
+                <label class="form-field"><span>Contact person</span><input id="company-form-contact" placeholder="Name"></label>
+                <label class="form-field"><span>Contact person's designation</span><input id="company-form-designation" placeholder="e.g. University recruiter"></label>
+                <label class="form-field"><span>Contact email</span><input id="company-form-email" type="email" placeholder="name@company.com"></label>
+                <label class="form-field"><span>LinkedIn URL</span><input id="company-form-linkedin" type="url" placeholder="https://www.linkedin.com/company/"></label>
+                <label class="form-field form-field-wide"><span>Additional notes</span><textarea id="company-form-notes" rows="3" placeholder="Context, conversations, or other useful notes"></textarea></label>
+              </div>
+            </section>
+          </div>
+          <div class="dialog-footer">
+            <button class="secondary-button" id="cancel-company-form" type="button">Cancel</button>
+            <button class="primary-button" type="submit">Save company</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <dialog class="company-delete-dialog" id="company-delete-dialog" aria-labelledby="company-delete-title">
+      <div class="company-delete-content">
+        <span class="delete-warning-mark" aria-hidden="true">!</span>
+        <p class="eyebrow">PLEASE CONFIRM</p>
+        <h2 id="company-delete-title">Delete this company?</h2>
+        <p id="company-delete-copy"></p>
+        <div class="company-delete-actions">
+          <button class="secondary-button" id="cancel-company-delete" type="button">Cancel</button>
+          <button class="primary-button danger-solid-button" id="confirm-company-delete" type="button">Delete company & keep applications</button>
+        </div>
       </div>
     </dialog>
     <div class="toast-message" id="toast-message" role="status" aria-live="polite"></div>
