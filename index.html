@@ -157,8 +157,163 @@
               <button class="text-button" id="back-to-dashboard" type="button">Back to dashboard <span aria-hidden="true">→</span></button>
             </div>
           </section>
+
+          <section class="view" id="applications-view" data-view="applications">
+            <div class="applications-list-view" id="applications-list-view">
+              <div class="page-heading applications-heading">
+                <div>
+                  <p class="eyebrow">YOUR OPPORTUNITIES</p>
+                  <h1>Applications<span class="heading-period">.</span></h1>
+                  <p class="page-subtitle">Keep every promising role, application, and next step together.</p>
+                </div>
+                <button class="primary-button" id="add-application-button" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                  Add application
+                </button>
+              </div>
+
+              <div class="application-toolbar">
+                <label class="application-search">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.2 4.2"/></svg>
+                  <input id="applications-search" type="search" placeholder="Search title or company" aria-label="Search by job title or company">
+                </label>
+                <div class="filter-controls" aria-label="Filter applications">
+                  <label><span>Status</span><select id="filter-status"><option value="">All statuses</option></select></label>
+                  <label><span>Company</span><select id="filter-company"><option value="">All companies</option></select></label>
+                  <label><span>Job type</span><select id="filter-job-type"><option value="">All job types</option></select></label>
+                  <label><span>Work mode</span><select id="filter-work-mode"><option value="">All work modes</option></select></label>
+                  <label><span>Source</span><select id="filter-source"><option value="">All sources</option></select></label>
+                  <label><span>Sort by</span>
+                    <select id="sort-applications">
+                      <option value="date-desc">Newest first</option>
+                      <option value="date-asc">Oldest first</option>
+                      <option value="company-asc">Company A–Z</option>
+                      <option value="title-asc">Job title A–Z</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div class="application-results-heading">
+                <p id="application-results-count" aria-live="polite"></p>
+                <div class="view-toggle" role="group" aria-label="Application display">
+                  <button class="view-toggle-button is-selected" type="button" data-app-view="cards" aria-pressed="true" aria-label="Card view">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg>
+                  </button>
+                  <button class="view-toggle-button" type="button" data-app-view="list" aria-pressed="false" aria-label="List view">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".7"/><circle cx="4.5" cy="12" r=".7"/><circle cx="4.5" cy="18" r=".7"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div id="application-results"></div>
+            </div>
+            <div class="application-detail-view" id="application-detail-view" hidden></div>
+          </section>
         </div>
       </main>
     </div>
+
+    <dialog class="application-dialog" id="application-dialog" aria-labelledby="application-dialog-title">
+      <div class="dialog-shell">
+        <header class="dialog-header">
+          <div>
+            <p class="eyebrow">YOUR OPPORTUNITY</p>
+            <h2 id="application-dialog-title">Add an application</h2>
+          </div>
+          <button class="icon-button dialog-close" type="button" aria-label="Close dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+          </button>
+        </header>
+
+        <div class="application-choice-step" id="application-choice-step">
+          <p class="choice-prompt">Where are you in your search with this opportunity?</p>
+          <div class="choice-options">
+            <button class="choice-card" type="button" data-application-intent="saved">
+              <span class="choice-icon choice-icon-saved"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4V4.5Z"/></svg></span>
+              <span><strong>Save this opportunity for later</strong><small>Keep it in your pipeline without an application date or resume.</small></span>
+              <span class="choice-arrow" aria-hidden="true">→</span>
+            </button>
+            <button class="choice-card" type="button" data-application-intent="applied">
+              <span class="choice-icon choice-icon-applied"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>
+              <span><strong>I have already applied</strong><small>Record when you applied and optionally choose the resume you used.</small></span>
+              <span class="choice-arrow" aria-hidden="true">→</span>
+            </button>
+          </div>
+        </div>
+
+        <form class="application-form" id="application-form" hidden>
+          <input type="hidden" name="id" id="application-id">
+          <input type="hidden" name="intent" id="application-intent">
+          <div class="form-scroll-area">
+            <section class="form-section">
+              <div class="form-section-heading"><span>01</span><div><h3>Job details</h3><p>The role and what it asks of you.</p></div></div>
+              <div class="form-grid">
+                <label class="form-field form-field-wide"><span>Job title <i>*</i></span><input name="title" id="form-title" required maxlength="140" placeholder="e.g. Product design intern"></label>
+                <label class="form-field"><span>Job type <i>*</i></span>
+                  <select name="jobType" id="form-job-type" required>
+                    <option value="">Choose job type</option><option>Internship</option><option>Full-time</option><option>Part-time</option><option>Contract</option>
+                  </select>
+                </label>
+                <label class="form-field"><span>Work mode</span>
+                  <select name="workMode" id="form-work-mode"><option value="">Choose work mode</option><option>Remote</option><option>Hybrid</option><option>On-site</option>
+                  </select>
+                </label>
+                <label class="form-field form-field-wide"><span>Complete job description</span><textarea name="description" id="form-description" rows="4" placeholder="Paste the role description here"></textarea></label>
+                <label class="form-field form-field-wide"><span>Job listing URL</span><input name="listingUrl" id="form-listing-url" type="url" placeholder="https://"></label>
+                <label class="form-field form-field-wide"><span>Required skills</span><input name="skills" id="form-skills" placeholder="Separate skills with commas"></label>
+                <label class="form-field"><span>Location</span><input name="location" id="form-location" placeholder="City, state or remote"></label>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <div class="form-section-heading"><span>02</span><div><h3>Employment details</h3><p>Compensation and expected commitment.</p></div></div>
+              <div class="form-grid">
+                <label class="form-field"><span>Stipend or salary</span><input name="compensationAmount" id="form-compensation" type="number" min="0" step="0.01" placeholder="e.g. 28"></label>
+                <label class="form-field"><span>Currency</span>
+                  <select name="currency" id="form-currency"><option value="USD">USD — US Dollar</option><option value="INR">INR — Indian Rupee</option><option value="EUR">EUR — Euro</option><option value="GBP">GBP — British Pound</option><option value="CAD">CAD — Canadian Dollar</option><option value="AUD">AUD — Australian Dollar</option>
+                  </select>
+                </label>
+                <label class="form-field"><span>Payment frequency</span>
+                  <select name="paymentFrequency" id="form-frequency"><option value="">Not specified</option><option>Hourly</option><option>Monthly</option><option>Annual</option><option>Total</option><option>Unpaid</option>
+                  </select>
+                </label>
+                <label class="form-field"><span>Internship duration</span><input name="duration" id="form-duration" placeholder="e.g. 12 weeks"></label>
+                <label class="form-field"><span>Expected hours per day</span><input name="hoursPerDay" id="form-hours" type="number" min="0" max="24" step="0.5" placeholder="e.g. 8"></label>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <div class="form-section-heading"><span>03</span><div><h3>Company</h3><p>Existing companies can be selected; new ones are ready to link in a later phase.</p></div></div>
+              <div class="form-grid">
+                <label class="form-field"><span>Select an existing company</span><select id="existing-company"><option value="">Choose a company (optional)</option></select></label>
+                <label class="form-field"><span>Company name <i>*</i></span><input name="companyName" id="form-company" required maxlength="120" placeholder="e.g. Acme Studio"></label>
+              </div>
+            </section>
+
+            <section class="form-section">
+              <div class="form-section-heading"><span>04</span><div><h3>Application details</h3><p>Track where you found this role and what comes next.</p></div></div>
+              <div class="form-grid">
+                <label class="form-field"><span>Application status</span><select name="status" id="form-status"></select></label>
+                <label class="form-field"><span>Application source <i>*</i></span>
+                  <select name="source" id="form-source" required><option value="">Choose a source</option><option>LinkedIn</option><option>Company website</option><option>Referral</option><option>Handshake</option><option>Indeed</option><option>Networking</option><option>Other</option></select>
+                </label>
+                <label class="form-field form-field-wide" id="custom-source-field" hidden><span>Other source</span><input name="sourceCustom" id="form-source-custom" placeholder="e.g. Campus career fair"></label>
+                <label class="form-field"><span>Date discovered</span><input name="dateDiscovered" id="form-date-discovered" type="date"></label>
+                <label class="form-field"><span>Date applied <i class="application-date-required" hidden>*</i></span><input name="dateApplied" id="form-date-applied" type="date"></label>
+                <label class="form-field"><span>Application deadline</span><input name="deadline" id="form-deadline" type="date"></label>
+                <label class="form-field"><span>Follow-up date</span><input name="followUpDate" id="form-follow-up" type="date"></label>
+                <label class="form-field form-field-wide"><span>Resume used <small>(Resume library coming in Phase 4)</small></span><select name="resumeId" id="form-resume"><option value="">No resume selected</option></select></label>
+                <label class="form-field form-field-wide"><span>Personal notes</span><textarea name="notes" id="form-notes" rows="3" placeholder="Anything you want to remember about this opportunity"></textarea></label>
+              </div>
+            </section>
+          </div>
+          <div class="dialog-footer">
+            <button class="secondary-button" id="cancel-application-form" type="button">Cancel</button>
+            <button class="primary-button" id="save-application-button" type="submit">Save application</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+    <div class="toast-message" id="toast-message" role="status" aria-live="polite"></div>
   </body>
 </html>
