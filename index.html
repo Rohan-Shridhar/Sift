@@ -7,9 +7,11 @@
     <meta name="description" content="A calm workspace for keeping your internship search on track.">
     <title>ApplyTrack — Internship search, in focus</title>
     <link rel="stylesheet" href="style.css">
+    <script src="core.js" defer></script>
     <script src="script.js" defer></script>
   </head>
   <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="app-shell">
       <aside class="sidebar" id="sidebar" aria-label="Main navigation">
         <a class="brand" href="#dashboard" aria-label="ApplyTrack dashboard">
@@ -33,10 +35,12 @@
           <a class="nav-link" href="#companies" data-route="companies">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V7.5L12 4l8 3.5V20M2.5 20h19M8 9h1m6 0h1m-8 4h1m6 0h1m-5 7v-4h4v4"/></svg>
             <span>Companies</span>
+            <span class="nav-count" id="company-nav-count">0</span>
           </a>
           <a class="nav-link" href="#resumes" data-route="resumes">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5v5h5M8.5 13h7m-7 3.5h7"/></svg>
             <span>Resumes</span>
+            <span class="nav-count" id="resume-nav-count">0</span>
           </a>
         </nav>
 
@@ -58,7 +62,7 @@
       </aside>
 
       <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
-      <main class="main-shell">
+      <main class="main-shell" id="main-content" tabindex="-1">
         <header class="topbar">
           <div class="topbar-left">
             <button class="icon-button mobile-menu-button" id="mobile-menu" type="button" aria-label="Open navigation">
@@ -69,7 +73,7 @@
           <div class="topbar-actions">
             <label class="search-box">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.2 4.2"/></svg>
-              <input id="application-search" type="search" placeholder="Search applications" aria-label="Search applications">
+              <input id="application-search" type="search" placeholder="Search opportunities" aria-label="Search opportunities">
               <kbd>/</kbd>
             </label>
             <span class="topbar-divider" aria-hidden="true"></span>
@@ -82,6 +86,11 @@
         </header>
 
         <div class="page-content">
+          <div class="storage-warning" id="storage-warning" role="status" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 9 16H3l9-16Z"/><path d="M12 9v5m0 2.5v.5"/></svg>
+            <p id="storage-warning-copy"></p>
+          </div>
+
           <section class="view is-visible" id="dashboard-view" data-view="dashboard">
             <div class="page-heading">
               <div>
@@ -95,67 +104,71 @@
               </div>
             </div>
 
-            <section class="stats-grid" id="stats-grid" aria-label="Application statistics"></section>
-
-            <section class="analytics-section" aria-labelledby="analytics-heading">
-              <div class="section-heading">
-                <div>
-                  <p class="eyebrow">THE BIG PICTURE</p>
-                  <h2 id="analytics-heading">Your activity</h2>
-                </div>
-                <span class="period-label"><span class="period-dot"></span> Last 6 months</span>
-              </div>
-              <div class="charts-grid">
-                <article class="chart-card chart-card-wide">
-                  <div class="chart-card-heading">
-                    <div><h3>Applications over time</h3><p>Submitted applications, month by month</p></div>
-                    <span class="chart-legend"><i class="legend-dot legend-indigo"></i>Applications</span>
-                  </div>
-                  <div class="chart-visual" id="applications-chart"></div>
-                </article>
-                <article class="chart-card">
-                  <div class="chart-card-heading">
-                    <div><h3>Application status</h3><p>Where each opportunity stands</p></div>
-                  </div>
-                  <div class="status-chart-wrap" id="status-chart"></div>
-                </article>
-                <article class="chart-card">
-                  <div class="chart-card-heading">
-                    <div><h3>Applications by source</h3><p>How you found opportunities</p></div>
-                  </div>
-                  <div class="source-chart" id="source-chart"></div>
-                </article>
-                <article class="chart-card chart-card-wide">
-                  <div class="chart-card-heading">
-                    <div><h3>Monthly application trends</h3><p>Compare saved opportunities with applications sent</p></div>
-                    <div class="chart-legend-group"><span class="chart-legend"><i class="legend-dot legend-indigo"></i>Applied</span><span class="chart-legend"><i class="legend-dot legend-sage"></i>Saved</span></div>
-                  </div>
-                  <div class="chart-visual" id="trends-chart"></div>
-                </article>
-              </div>
-            </section>
-
-            <section class="pipeline-section" aria-labelledby="pipeline-heading">
-              <div class="section-heading pipeline-heading">
-                <div>
-                  <p class="eyebrow">YOUR PIPELINE</p>
-                  <h2 id="pipeline-heading">Opportunities</h2>
-                </div>
-                <span class="pipeline-total" id="pipeline-total"></span>
-              </div>
-              <div class="pipeline-list" id="pipeline-list"></div>
-            </section>
-            <footer class="page-footer"><span>Made for the next step in your career.</span><span>ApplyTrack <span class="footer-year"></span></span></footer>
-          </section>
-
-          <section class="view" id="placeholder-view" data-view="placeholder" aria-live="polite">
-            <div class="placeholder-card">
-              <span class="placeholder-mark" id="placeholder-mark" aria-hidden="true"></span>
-              <p class="eyebrow">A SPACE FOR WHAT'S NEXT</p>
-              <h1 id="placeholder-title"></h1>
-              <p id="placeholder-copy"></p>
-              <button class="text-button" id="back-to-dashboard" type="button">Back to dashboard <span aria-hidden="true">→</span></button>
+            <div class="dashboard-skeleton" id="dashboard-skeleton" aria-hidden="true">
+              <div class="skeleton-bar skeleton-bar-tall"></div>
+              <div class="skeleton-bar"></div>
+              <div class="skeleton-bar skeleton-bar-chart"></div>
             </div>
+
+            <div id="dashboard-content" hidden>
+              <section class="summary-surface" aria-labelledby="summary-heading">
+                <h2 class="visually-hidden" id="summary-heading">Opportunity summary</h2>
+                <div class="summary-primary" id="summary-primary"></div>
+                <div class="summary-secondary">
+                  <div class="outcome-strip" id="outcome-strip"></div>
+                  <p class="summary-compensation" id="summary-compensation"></p>
+                </div>
+              </section>
+
+              <section class="analytics-section" aria-labelledby="analytics-heading">
+                <div class="section-heading">
+                  <div>
+                    <p class="eyebrow">ACTIVITY</p>
+                    <h2 id="analytics-heading">Your activity</h2>
+                  </div>
+                  <span class="period-label"><span class="period-dot"></span> Last 6 months</span>
+                </div>
+                <div class="charts-grid">
+                  <article class="chart-card chart-card-activity">
+                    <div class="chart-card-heading">
+                      <div><h3>Applications over time</h3><p>Submitted and saved opportunities, month by month</p></div>
+                      <div class="chart-legend-group"><span class="chart-legend"><i class="legend-dot legend-indigo"></i>Submitted</span><span class="chart-legend"><i class="legend-dot legend-sage"></i>Saved</span></div>
+                    </div>
+                    <div class="chart-visual" id="activity-chart"></div>
+                  </article>
+                  <article class="chart-card">
+                    <div class="chart-card-heading">
+                      <div><h3>Application status</h3><p>Where each opportunity stands</p></div>
+                    </div>
+                    <div class="status-chart-wrap" id="status-chart"></div>
+                  </article>
+                  <article class="chart-card">
+                    <div class="chart-card-heading">
+                      <div><h3>Applications by source</h3><p>Submitted applications only</p></div>
+                    </div>
+                    <div class="source-chart" id="source-chart"></div>
+                  </article>
+                  <article class="chart-card">
+                    <div class="chart-card-heading">
+                      <div><h3>Resume usage</h3><p>Applications submitted with each resume</p></div>
+                    </div>
+                    <div class="source-chart" id="resume-usage-chart"></div>
+                  </article>
+                </div>
+              </section>
+
+              <section class="pipeline-section" aria-labelledby="pipeline-heading">
+                <div class="section-heading pipeline-heading">
+                  <div>
+                    <p class="eyebrow">YOUR PIPELINE</p>
+                    <h2 id="pipeline-heading">Opportunities</h2>
+                  </div>
+                  <span class="pipeline-total" id="pipeline-total"></span>
+                </div>
+                <div class="pipeline-list" id="pipeline-list"></div>
+              </section>
+            </div>
+            <footer class="page-footer"><span>Made for the next step in your career.</span><span>ApplyTrack <span class="footer-year"></span></span></footer>
           </section>
 
           <section class="view" id="applications-view" data-view="applications">
@@ -175,7 +188,7 @@
               <div class="application-toolbar">
                 <label class="application-search">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.2 4.2"/></svg>
-                  <input id="applications-search" type="search" placeholder="Search title or company" aria-label="Search by job title or company">
+                  <input id="applications-search" type="search" placeholder="Search title, company or notes" aria-label="Search by job title, company or notes">
                 </label>
                 <div class="filter-controls" aria-label="Filter applications">
                   <label><span>Status</span><select id="filter-status"><option value="">All statuses</option></select></label>
@@ -192,6 +205,10 @@
                     </select>
                   </label>
                 </div>
+                <p class="filter-scope" id="filter-scope" hidden>
+                  <span id="filter-scope-label"></span>
+                  <button class="text-button filter-scope-clear" id="clear-scope-filter" type="button">Show all</button>
+                </p>
               </div>
 
               <div class="application-results-heading">
@@ -248,6 +265,7 @@
                   Upload resume
                 </button>
               </div>
+              <p class="file-check-note" id="file-check-note" aria-live="polite" hidden></p>
               <div class="resume-toolbar">
                 <label class="application-search">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.2 4.2"/></svg>
@@ -258,6 +276,105 @@
               <div id="resume-results"></div>
             </div>
             <div class="resume-detail-view" id="resume-detail-view" hidden></div>
+          </section>
+
+          <section class="view" id="settings-view" data-view="settings">
+            <div class="page-heading applications-heading">
+              <div>
+                <h1>Settings<span class="heading-period">.</span></h1>
+                <p class="page-subtitle">Preferences, backups and local storage for this browser.</p>
+              </div>
+              <span class="settings-version" id="settings-version">Version 1.0.0</span>
+            </div>
+
+            <div class="settings-layout">
+              <div class="settings-main">
+                <article class="settings-panel" aria-labelledby="settings-preferences-heading">
+                  <h2 id="settings-preferences-heading">Preferences</h2>
+                  <div class="settings-row">
+                    <div class="settings-row-text">
+                      <span class="settings-label" id="settings-theme-label">Theme</span>
+                      <span class="settings-hint" id="settings-theme-hint">Currently light</span>
+                    </div>
+                    <div class="theme-choice" role="radiogroup" aria-labelledby="settings-theme-label">
+                      <label class="theme-choice-option"><input type="radio" name="theme-preference" value="light"><span>Light</span></label>
+                      <label class="theme-choice-option"><input type="radio" name="theme-preference" value="dark"><span>Dark</span></label>
+                      <label class="theme-choice-option"><input type="radio" name="theme-preference" value="system"><span>Follow system</span></label>
+                    </div>
+                  </div>
+                  <div class="settings-row">
+                    <div class="settings-row-text">
+                      <label class="settings-label" for="settings-currency">Preferred currency</label>
+                      <span class="settings-hint">Default for new applications and the dashboard total</span>
+                    </div>
+                    <select id="settings-currency" class="settings-select"></select>
+                  </div>
+                </article>
+
+                <article class="settings-panel" aria-labelledby="settings-backup-heading">
+                  <div class="settings-panel-heading">
+                    <div>
+                      <h2 id="settings-backup-heading">Backup and recovery</h2>
+                      <p class="settings-hint">A backup is one JSON file with every record and your uploaded PDFs. CSV contains application rows only.</p>
+                    </div>
+                    <span class="settings-badge" id="settings-backup-badge">Never exported</span>
+                  </div>
+                  <table class="inventory-table" aria-labelledby="settings-backup-heading">
+                    <thead><tr><th scope="col">Category</th><th scope="col">Local</th><th scope="col">In backup</th></tr></thead>
+                    <tbody id="backup-inventory-body"></tbody>
+                  </table>
+                  <div class="settings-actions">
+                    <button class="primary-button" id="export-backup" type="button">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10m0 0 4-4m-4 4-4-4"/><path d="M4.5 16.5v2A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg>
+                      Export backup
+                    </button>
+                    <button class="secondary-button" id="import-backup" type="button">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V5m0 0 4 4m-4-4-4 4"/><path d="M4.5 16.5v2A1.5 1.5 0 0 0 6 20h12a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg>
+                      Import backup
+                    </button>
+                    <button class="secondary-button" id="export-csv" type="button">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M9 9.5v10"/></svg>
+                      Export applications CSV
+                    </button>
+                    <input id="import-file" type="file" accept="application/json,.json" hidden>
+                  </div>
+                  <div class="receipt" id="backup-receipt" role="status" hidden></div>
+                </article>
+
+                <article class="settings-panel" aria-labelledby="settings-sample-heading">
+                  <div class="settings-panel-heading">
+                    <div>
+                      <h2 id="settings-sample-heading">Sample data</h2>
+                      <p class="settings-hint">Example opportunities, companies and resume records with no PDFs attached.</p>
+                    </div>
+                    <button class="secondary-button" id="load-sample-data" type="button">Load sample data</button>
+                  </div>
+                  <p class="settings-hint" id="sample-data-note">Available while the workspace is empty.</p>
+                </article>
+
+                <article class="danger-zone" aria-labelledby="settings-danger-heading">
+                  <h2 id="settings-danger-heading">Clear local data</h2>
+                  <p>This deletes every application, company, resume record and stored PDF in this browser. Export a backup first. This cannot be undone.</p>
+                  <button class="primary-button danger-solid-button" id="clear-data" type="button">Clear all data</button>
+                </article>
+              </div>
+
+              <aside class="settings-side" aria-label="Storage details">
+                <article class="settings-panel">
+                  <h2>Local storage</h2>
+                  <dl class="settings-facts" id="storage-facts"></dl>
+                  <p class="settings-note" id="storage-note" hidden></p>
+                </article>
+                <article class="settings-panel">
+                  <h2>About</h2>
+                  <dl class="settings-facts">
+                    <div><dt>Version</dt><dd>1.0.0</dd></div>
+                    <div><dt>Backup format</dt><dd>JSON, schema 1</dd></div>
+                    <div><dt>Data location</dt><dd>This browser only</dd></div>
+                  </dl>
+                </article>
+              </aside>
+            </div>
           </section>
         </div>
       </main>
@@ -291,7 +408,7 @@
           </div>
         </div>
 
-        <form class="application-form" id="application-form" hidden>
+        <form class="application-form" id="application-form" novalidate hidden>
           <input type="hidden" name="id" id="application-id">
           <input type="hidden" name="intent" id="application-intent">
           <div class="form-scroll-area">
@@ -335,7 +452,7 @@
             <section class="form-section">
               <div class="form-section-heading"><span>03</span><div><h3>Company</h3><p>Choose an existing company or add a new one to your directory.</p></div></div>
               <div class="form-grid">
-                <label class="form-field form-field-wide"><span>Company name <i class="company-name-required">*</i></span><input name="companyName" id="form-company" list="company-suggestions" required maxlength="120" placeholder="Choose an existing company or enter a new name"><datalist id="company-suggestions"></datalist><small class="field-hint">Existing companies will be suggested as you type. New names are added to your directory automatically.</small></label>
+                <label class="form-field form-field-wide"><span>Company name <i class="company-name-required">*</i></span><input name="companyName" id="form-company" list="company-suggestions" required maxlength="120" placeholder="Choose an existing company or enter a new name"><datalist id="company-suggestions"></datalist><small class="field-hint">Existing companies are suggested as you type. New names are added to your directory.</small></label>
               </div>
             </section>
 
@@ -376,7 +493,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
           </button>
         </header>
-        <form id="company-form" class="company-form">
+        <form id="company-form" class="company-form" novalidate>
           <input type="hidden" id="company-form-id">
           <div class="form-scroll-area company-form-scroll">
             <section class="form-section">
@@ -393,7 +510,7 @@
               </div>
             </section>
             <section class="form-section">
-              <div class="form-section-heading"><span>02</span><div><h3>People & notes</h3><p>Capture a useful contact and anything to remember.</p></div></div>
+              <div class="form-section-heading"><span>02</span><div><h3>People &amp; notes</h3><p>Capture a useful contact and anything to remember.</p></div></div>
               <div class="form-grid">
                 <label class="form-field"><span>Contact person</span><input id="company-form-contact" placeholder="Name"></label>
                 <label class="form-field"><span>Contact person's designation</span><input id="company-form-designation" placeholder="e.g. University recruiter"></label>
@@ -419,7 +536,7 @@
         <p id="company-delete-copy"></p>
         <div class="company-delete-actions">
           <button class="secondary-button" id="cancel-company-delete" type="button">Cancel</button>
-          <button class="primary-button danger-solid-button" id="confirm-company-delete" type="button">Delete company & keep applications</button>
+          <button class="primary-button danger-solid-button" id="confirm-company-delete" type="button">Delete company &amp; keep applications</button>
         </div>
       </div>
     </dialog>
@@ -435,7 +552,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
           </button>
         </header>
-        <form id="resume-form" class="resume-form">
+        <form id="resume-form" class="resume-form" novalidate>
           <div class="form-scroll-area resume-form-scroll">
             <section class="form-section">
               <div class="form-grid">
@@ -463,6 +580,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
           </button>
         </header>
+        <div class="preview-state" id="resume-preview-state" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <p id="resume-preview-state-copy">Opening PDF…</p>
+        </div>
         <iframe id="resume-preview-frame" title="Resume PDF preview"></iframe>
       </div>
     </dialog>
@@ -479,6 +600,51 @@
         </div>
       </div>
     </dialog>
+
+    <dialog class="company-delete-dialog confirm-dialog" id="confirm-dialog" aria-labelledby="confirm-title">
+      <div class="company-delete-content">
+        <span class="delete-warning-mark" id="confirm-mark" aria-hidden="true">!</span>
+        <p class="eyebrow" id="confirm-eyebrow">PLEASE CONFIRM</p>
+        <h2 id="confirm-title">Delete this?</h2>
+        <p id="confirm-copy"></p>
+        <label class="confirm-text-field" id="confirm-text-field" hidden>
+          <span id="confirm-text-label">Type DELETE to confirm</span>
+          <input id="confirm-input" type="text" autocomplete="off" spellcheck="false" aria-describedby="confirm-error">
+          <small class="field-error" id="confirm-error" aria-live="polite"></small>
+        </label>
+        <div class="company-delete-actions">
+          <button class="secondary-button" id="confirm-cancel" type="button">Cancel</button>
+          <button class="primary-button danger-solid-button" id="confirm-accept" type="button">Delete</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="application-dialog import-dialog" id="import-dialog" aria-labelledby="import-dialog-title">
+      <div class="dialog-shell">
+        <header class="dialog-header">
+          <div>
+            <p class="eyebrow">RESTORE FROM BACKUP</p>
+            <h2 id="import-dialog-title">Import backup</h2>
+          </div>
+          <button class="icon-button import-dialog-close" type="button" aria-label="Close dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+          </button>
+        </header>
+        <div class="form-scroll-area">
+          <div class="import-summary" id="import-summary"></div>
+          <table class="inventory-table import-inventory" aria-label="Current data compared with the backup">
+            <thead><tr><th scope="col">Category</th><th scope="col">Current data</th><th scope="col">Backup</th></tr></thead>
+            <tbody id="import-inventory-body"></tbody>
+          </table>
+          <p class="import-warning" id="import-warning" hidden></p>
+        </div>
+        <div class="dialog-footer">
+          <button class="secondary-button" id="cancel-import" type="button">Cancel</button>
+          <button class="primary-button danger-solid-button" id="confirm-import" type="button" disabled>Replace local data</button>
+        </div>
+      </div>
+    </dialog>
+
     <div class="toast-message" id="toast-message" role="status" aria-live="polite"></div>
   </body>
 </html>
