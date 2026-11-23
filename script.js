@@ -386,15 +386,20 @@ function renderStats() {
     { label: "Interviews", value: countByStatus("Interviewed"), note: "You've got this", icon: "interviews", tone: "blue" },
     { label: "Offers received", value: countByStatus("Offered"), note: "A milestone worth celebrating", icon: "offers", tone: "rose" }
   ];
-  document.querySelector("#stats-grid").innerHTML = stats.map((stat) => `
+  const grid = document.querySelector("#stats-grid");
+  if (grid) {
+    grid.innerHTML = stats.map((stat) => `
     <article class="stat-card" data-tone="${stat.tone}">
       <div class="stat-top"><span class="stat-label">${stat.label}</span><span class="stat-icon">${iconMarkup[stat.icon]}</span></div>
       <div class="stat-value"><strong>${stat.value}</strong></div>
       <div class="stat-footnote">${stat.note}</div>
     </article>
   `).join("");
-  document.querySelector("#application-nav-count").textContent = state.applications.length;
-  document.querySelector("#pipeline-total").textContent = `${state.applications.length} ${state.applications.length === 1 ? "opportunity" : "opportunities"}`;
+  }
+  const navCount = document.querySelector("#application-nav-count");
+  if (navCount) navCount.textContent = state.applications.length;
+  const pipelineTotal = document.querySelector("#pipeline-total");
+  if (pipelineTotal) pipelineTotal.textContent = `${state.applications.length} ${state.applications.length === 1 ? "opportunity" : "opportunities"}`;
 }
 
 function statusOptions(selectedStatus) {
@@ -460,7 +465,9 @@ function renderPipeline() {
         </div>
       </section>`;
   });
-  document.querySelector("#pipeline-list").innerHTML = groups.join("");
+  const pipelineList = document.querySelector("#pipeline-list");
+  if (!pipelineList) return;
+  pipelineList.innerHTML = groups.join("");
   document.querySelectorAll(".pipeline-group-header").forEach((button) => {
     button.addEventListener("click", () => {
       const section = button.closest(".pipeline-group").dataset.status;
@@ -513,6 +520,7 @@ function svgPolyline(values, max, width, height, padding, className) {
 
 function renderLineChart(targetId, values, labels, options) {
   const target = document.getElementById(targetId);
+  if (!target) return;
   if (!values.some((value) => value > 0) && !options.allowEmpty) {
     target.innerHTML = `<div class="empty-chart">Your activity will appear here as you apply.</div>`;
     return;
@@ -544,6 +552,7 @@ function renderLineChart(targetId, values, labels, options) {
 
 function renderStatusChart() {
   const target = document.querySelector("#status-chart");
+  if (!target) return;
   const counts = statusOrder.map((status) => countByStatus(status));
   const total = counts.reduce((sum, count) => sum + count, 0);
   const totalApplied = state.applications.filter((application) => application.status !== "Saved").length;
@@ -571,6 +580,7 @@ function renderSourceChart() {
   const sorted = [...sources.entries()].sort((first, second) => second[1] - first[1]).slice(0, 4);
   const maximum = Math.max(1, ...sorted.map(([, count]) => count));
   const target = document.querySelector("#source-chart");
+  if (!target) return;
   target.innerHTML = sorted.length ? sorted.map(([source, count], index) => `
     <div class="source-row">
       <span class="source-name">${escapeHtml(source)}</span>
@@ -2091,11 +2101,15 @@ function routeTo(route, preserveApplicationMode) {
     state.resumeMode = "list";
     state.activeResumeId = null;
   }
-  document.querySelector("#dashboard-view").classList.toggle("is-visible", dashboard);
-  document.querySelector("#applications-view").classList.toggle("is-visible", applications);
-  document.querySelector("#companies-view").classList.toggle("is-visible", companies);
-  document.querySelector("#resumes-view").classList.toggle("is-visible", resumes);
-  document.querySelector("#placeholder-view").classList.toggle("is-visible", !dashboard && !applications && !companies && !resumes);
+  const toggleView = (selector, visible) => {
+    const view = document.querySelector(selector);
+    if (view) view.classList.toggle("is-visible", visible);
+  };
+  toggleView("#dashboard-view", dashboard);
+  toggleView("#applications-view", applications);
+  toggleView("#companies-view", companies);
+  toggleView("#resumes-view", resumes);
+  toggleView("#placeholder-view", !dashboard && !applications && !companies && !resumes);
   document.querySelectorAll(".nav-link[data-route]").forEach((link) => {
     const active = link.dataset.route === route;
     link.classList.toggle("is-active", active);
@@ -2110,11 +2124,15 @@ function routeTo(route, preserveApplicationMode) {
         ? ["Resumes", "Your resume library and application history.", "resumes"]
         : pageDescriptions[route] || pageDescriptions.settings;
   if (!dashboard && !applications && !companies && !resumes) {
-    document.querySelector("#placeholder-title").textContent = title;
-    document.querySelector("#placeholder-copy").textContent = copy;
-    document.querySelector("#placeholder-mark").innerHTML = iconMarkup[icon] || iconMarkup.opportunities;
+    const placeholderTitle = document.querySelector("#placeholder-title");
+    const placeholderCopy = document.querySelector("#placeholder-copy");
+    const placeholderMark = document.querySelector("#placeholder-mark");
+    if (placeholderTitle) placeholderTitle.textContent = title;
+    if (placeholderCopy) placeholderCopy.textContent = copy;
+    if (placeholderMark) placeholderMark.innerHTML = iconMarkup[icon] || iconMarkup.opportunities;
   }
-  document.querySelector("#breadcrumb-current").textContent = dashboard ? "Dashboard" : title;
+  const breadcrumb = document.querySelector("#breadcrumb-current");
+  if (breadcrumb) breadcrumb.textContent = dashboard ? "Dashboard" : title;
   document.title = dashboard ? "ApplyTrack — Internship search, in focus" : `${title} — ApplyTrack`;
   document.querySelector("#sidebar").classList.remove("is-open");
   document.querySelector("#sidebar-backdrop").classList.remove("is-visible");
@@ -2186,7 +2204,8 @@ function initNavigation() {
       routeTo(link.dataset.route);
     });
   });
-  document.querySelector("#back-to-dashboard").addEventListener("click", () => routeTo("dashboard"));
+  const backToDashboard = document.querySelector("#back-to-dashboard");
+  if (backToDashboard) backToDashboard.addEventListener("click", () => routeTo("dashboard"));
   const initialRoute = location.hash.slice(1);
   routeTo(["dashboard", "applications", "companies", "resumes", ...Object.keys(pageDescriptions)].includes(initialRoute) ? initialRoute : "dashboard");
   window.addEventListener("hashchange", () => {

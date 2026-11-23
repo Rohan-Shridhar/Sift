@@ -104,20 +104,10 @@
               </div>
             </div>
 
-            <div class="dashboard-skeleton" id="dashboard-skeleton" aria-hidden="true">
-              <div class="skeleton-bar skeleton-bar-tall"></div>
-              <div class="skeleton-bar"></div>
-              <div class="skeleton-bar skeleton-bar-chart"></div>
-            </div>
-
-            <div id="dashboard-content" hidden>
-              <section class="summary-surface" aria-labelledby="summary-heading">
+            <div id="dashboard-content">
+              <section aria-labelledby="summary-heading">
                 <h2 class="visually-hidden" id="summary-heading">Opportunity summary</h2>
-                <div class="summary-primary" id="summary-primary"></div>
-                <div class="summary-secondary">
-                  <div class="outcome-strip" id="outcome-strip"></div>
-                  <p class="summary-compensation" id="summary-compensation"></p>
-                </div>
+                <div class="stats-grid" id="stats-grid"></div>
               </section>
 
               <section class="analytics-section" aria-labelledby="analytics-heading">
@@ -131,10 +121,9 @@
                 <div class="charts-grid">
                   <article class="chart-card chart-card-activity">
                     <div class="chart-card-heading">
-                      <div><h3>Applications over time</h3><p>Submitted and saved opportunities, month by month</p></div>
-                      <div class="chart-legend-group"><span class="chart-legend"><i class="legend-dot legend-indigo"></i>Submitted</span><span class="chart-legend"><i class="legend-dot legend-sage"></i>Saved</span></div>
+                      <div><h3>Applications over time</h3><p>Submitted opportunities, month by month</p></div>
                     </div>
-                    <div class="chart-visual" id="activity-chart"></div>
+                    <div class="chart-visual" id="applications-chart"></div>
                   </article>
                   <article class="chart-card">
                     <div class="chart-card-heading">
@@ -150,9 +139,10 @@
                   </article>
                   <article class="chart-card">
                     <div class="chart-card-heading">
-                      <div><h3>Resume usage</h3><p>Applications submitted with each resume</p></div>
+                      <div><h3>Submitted and saved</h3><p>Both series over the last six months</p></div>
+                      <div class="chart-legend-group"><span class="chart-legend"><i class="legend-dot legend-indigo"></i>Submitted</span><span class="chart-legend"><i class="legend-dot legend-sage"></i>Saved</span></div>
                     </div>
-                    <div class="source-chart" id="resume-usage-chart"></div>
+                    <div class="chart-visual" id="trends-chart"></div>
                   </article>
                 </div>
               </section>
@@ -276,6 +266,16 @@
               <div id="resume-results"></div>
             </div>
             <div class="resume-detail-view" id="resume-detail-view" hidden></div>
+          </section>
+
+          <section class="view" id="placeholder-view" data-view="placeholder">
+            <div class="placeholder-card">
+              <span class="placeholder-mark" id="placeholder-mark" aria-hidden="true"></span>
+              <h1 id="placeholder-title">Settings</h1>
+              <p id="placeholder-copy">Theme preferences and workspace options will live here as ApplyTrack grows.</p>
+              <button class="text-button" id="back-to-dashboard" type="button">Back to dashboard</button>
+            </div>
+            <footer class="page-footer"><span>Settings are saved in this browser.</span><span>ApplyTrack <span class="footer-year"></span></span></footer>
           </section>
 
           <section class="view" id="settings-view" data-view="settings">
