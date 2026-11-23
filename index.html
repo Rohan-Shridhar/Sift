@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f6f8">
+    <meta name="description" content="A calm workspace for keeping your internship search on track.">
+    <title>ApplyTrack — Internship search, in focus</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+        <a class="brand" href="#dashboard" aria-label="ApplyTrack dashboard">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 32 32"><path d="M7 23.5V8.8c0-.9.7-1.6 1.6-1.6h14.8c.9 0 1.6.7 1.6 1.6v14.7c0 .9-.7 1.6-1.6 1.6H8.6c-.9 0-1.6-.7-1.6-1.6Z"/><path d="m11 17 3.2 3.2L21 13"/></svg>
+          </span>
+          <span class="brand-name">ApplyTrack</span>
+        </a>
+
+        <div class="workspace-label">WORKSPACE</div>
+        <nav class="nav-list">
+          <a class="nav-link is-active" href="#dashboard" data-route="dashboard">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="4" rx="1.5"/><rect x="13.5" y="10.5" width="7" height="10" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+            <span>Dashboard</span>
+          </a>
+          <a class="nav-link" href="#applications" data-route="applications">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 5V3.5h8V5M8 10h8M8 14h5"/></svg>
+            <span>Applications</span>
+            <span class="nav-count" id="application-nav-count">0</span>
+          </a>
+          <a class="nav-link" href="#companies" data-route="companies">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V7.5L12 4l8 3.5V20M2.5 20h19M8 9h1m6 0h1m-8 4h1m6 0h1m-5 7v-4h4v4"/></svg>
+            <span>Companies</span>
+          </a>
+          <a class="nav-link" href="#resumes" data-route="resumes">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5v5h5M8.5 13h7m-7 3.5h7"/></svg>
+            <span>Resumes</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+        <div class="workspace-card">
+          <div class="workspace-card-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3.5 14.3 9l5.7 2.2-5.7 2.3-2.3 5.7-2.2-5.7L4 11.2 9.8 9 12 3.5Z"/></svg>
+          </div>
+          <p class="workspace-card-title">A little progress adds up.</p>
+          <p class="workspace-card-copy">Keep your search organized, one opportunity at a time.</p>
+        </div>
+        <a class="nav-link settings-link" href="#settings" data-route="settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 13.5 1.1.9-1.7 3-1.4-.5a7.5 7.5 0 0 1-1.6.9l-.3 1.5h-3.4l-.3-1.5a7.5 7.5 0 0 1-1.6-.9l-1.4.5-1.7-3 1.1-.9a7 7 0 0 1 0-1.8l-1.1-.9 1.7-3 1.4.5a7.5 7.5 0 0 1 1.6-.9l.3-1.5h3.4l.3 1.5a7.5 7.5 0 0 1 1.6.9l1.4-.5 1.7 3-1.1.9a7 7 0 0 1 0 1.8Z"/></svg>
+          <span>Settings</span>
+        </a>
+        <button class="sidebar-collapse" id="sidebar-collapse" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6"/></svg>
+        </button>
+      </aside>
+
+      <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+      <main class="main-shell">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button mobile-menu-button" id="mobile-menu" type="button" aria-label="Open navigation">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+            </button>
+            <div class="breadcrumb"><span>Workspace</span><span class="breadcrumb-divider">/</span><strong id="breadcrumb-current">Dashboard</strong></div>
+          </div>
+          <div class="topbar-actions">
+            <label class="search-box">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m16 16 4.2 4.2"/></svg>
+              <input id="application-search" type="search" placeholder="Search applications" aria-label="Search applications">
+              <kbd>/</kbd>
+            </label>
+            <span class="topbar-divider" aria-hidden="true"></span>
+            <button class="icon-button theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch theme">
+              <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.7"/><path d="M12 2.5v2m0 15v2m9.5-9.5h-2m-15 0h-2m16.2-6.2-1.4 1.4M6.7 17.3l-1.4 1.4m13.4 0-1.4-1.4M6.7 6.7 5.3 5.3"/></svg>
+              <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 15.2A8.3 8.3 0 0 1 8.8 4.5 8.5 8.5 0 1 0 19.5 15.2Z"/></svg>
+            </button>
+            <div class="profile-avatar" aria-label="Your profile">R</div>
+          </div>
+        </header>
+
+        <div class="page-content">
+          <section class="view is-visible" id="dashboard-view" data-view="dashboard">
+            <div class="page-heading">
+              <div>
+                <p class="eyebrow" id="today-label">YOUR SEARCH, AT A GLANCE</p>
+                <h1>Good to see you<span class="heading-period">.</span></h1>
+                <p class="page-subtitle">A little structure goes a long way. Here's where things stand.</p>
+              </div>
+              <div class="heading-date">
+                <span class="date-dot" aria-hidden="true"></span>
+                <span id="current-date"></span>
+              </div>
+            </div>
+
+            <section class="stats-grid" id="stats-grid" aria-label="Application statistics"></section>
+
+            <section class="analytics-section" aria-labelledby="analytics-heading">
+              <div class="section-heading">
+                <div>
+                  <p class="eyebrow">THE BIG PICTURE</p>
+                  <h2 id="analytics-heading">Your activity</h2>
+                </div>
+                <span class="period-label"><span class="period-dot"></span> Last 6 months</span>
+              </div>
+              <div class="charts-grid">
+                <article class="chart-card chart-card-wide">
+                  <div class="chart-card-heading">
+                    <div><h3>Applications over time</h3><p>Submitted applications, month by month</p></div>
+                    <span class="chart-legend"><i class="legend-dot legend-indigo"></i>Applications</span>
+                  </div>
+                  <div class="chart-visual" id="applications-chart"></div>
+                </article>
+                <article class="chart-card">
+                  <div class="chart-card-heading">
+                    <div><h3>Application status</h3><p>Where each opportunity stands</p></div>
+                  </div>
+                  <div class="status-chart-wrap" id="status-chart"></div>
+                </article>
+                <article class="chart-card">
+                  <div class="chart-card-heading">
+                    <div><h3>Applications by source</h3><p>How you found opportunities</p></div>
+                  </div>
+                  <div class="source-chart" id="source-chart"></div>
+                </article>
+                <article class="chart-card chart-card-wide">
+                  <div class="chart-card-heading">
+                    <div><h3>Monthly application trends</h3><p>Compare saved opportunities with applications sent</p></div>
+                    <div class="chart-legend-group"><span class="chart-legend"><i class="legend-dot legend-indigo"></i>Applied</span><span class="chart-legend"><i class="legend-dot legend-sage"></i>Saved</span></div>
+                  </div>
+                  <div class="chart-visual" id="trends-chart"></div>
+                </article>
+              </div>
+            </section>
+
+            <section class="pipeline-section" aria-labelledby="pipeline-heading">
+              <div class="section-heading pipeline-heading">
+                <div>
+                  <p class="eyebrow">YOUR PIPELINE</p>
+                  <h2 id="pipeline-heading">Opportunities</h2>
+                </div>
+                <span class="pipeline-total" id="pipeline-total"></span>
+              </div>
+              <div class="pipeline-list" id="pipeline-list"></div>
+            </section>
+            <footer class="page-footer"><span>Made for the next step in your career.</span><span>ApplyTrack <span class="footer-year"></span></span></footer>
+          </section>
+
+          <section class="view" id="placeholder-view" data-view="placeholder" aria-live="polite">
+            <div class="placeholder-card">
+              <span class="placeholder-mark" id="placeholder-mark" aria-hidden="true"></span>
+              <p class="eyebrow">A SPACE FOR WHAT'S NEXT</p>
+              <h1 id="placeholder-title"></h1>
+              <p id="placeholder-copy"></p>
+              <button class="text-button" id="back-to-dashboard" type="button">Back to dashboard <span aria-hidden="true">→</span></button>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
