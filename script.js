@@ -2080,7 +2080,7 @@ function initApplicationManagement() {
 }
 
 const pageDescriptions = {
-  settings: ["Settings", "Theme preferences and workspace options will live here as ApplyTrack grows.", "settings"]
+  settings: ["Settings", "Theme preferences and workspace options will live here as Sift grows.", "settings"]
 };
 
 function routeTo(route, preserveApplicationMode) {
@@ -2133,7 +2133,7 @@ function routeTo(route, preserveApplicationMode) {
   }
   const breadcrumb = document.querySelector("#breadcrumb-current");
   if (breadcrumb) breadcrumb.textContent = dashboard ? "Dashboard" : title;
-  document.title = dashboard ? "ApplyTrack — Internship search, in focus" : `${title} — ApplyTrack`;
+  document.title = dashboard ? "Sift — Internship search, in focus" : `${title} — Sift`;
   document.querySelector("#sidebar").classList.remove("is-open");
   document.querySelector("#sidebar-backdrop").classList.remove("is-visible");
   if (location.hash !== `#${route}`) history.replaceState(null, "", `#${route}`);
