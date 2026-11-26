@@ -1,5 +1,5 @@
 /**
- * Sift / ApplyTrack — core domain layer.
+ * Sift / Sift — core domain layer.
  *
  * Everything here is a pure function: no DOM, no global storage access at load time.
  * The UI layer (script.js) owns rendering; this file owns records, integrity, maths,
@@ -14,7 +14,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  var APP_NAME = "ApplyTrack";
+  var APP_NAME = "Sift";
   var SCHEMA_VERSION = 1;
 
   var STORAGE_KEYS = {
@@ -1248,18 +1248,18 @@
     try {
       parsed = JSON.parse(rawText);
     } catch (error) {
-      return { ok: false, error: "That file is not valid JSON. Choose an ApplyTrack backup file." };
+      return { ok: false, error: "That file is not valid JSON. Choose an Sift backup file." };
     }
 
-    if (!isObject(parsed)) return { ok: false, error: "That file is not an ApplyTrack backup." };
+    if (!isObject(parsed)) return { ok: false, error: "That file is not an Sift backup." };
     if (parsed.format !== "applytrack-backup") {
-      return { ok: false, error: "That file is not an ApplyTrack backup." };
+      return { ok: false, error: "That file is not an Sift backup." };
     }
     if (!Number.isInteger(parsed.schemaVersion) || parsed.schemaVersion < 1) {
       return { ok: false, error: "The backup is missing a readable format version." };
     }
     if (parsed.schemaVersion > SCHEMA_VERSION) {
-      return { ok: false, error: "This backup was made by a newer version of ApplyTrack." };
+      return { ok: false, error: "This backup was made by a newer version of Sift." };
     }
     if (!isObject(parsed.data)) return { ok: false, error: "The backup does not contain any records." };
 
